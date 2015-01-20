@@ -64,7 +64,7 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T06:30:28.000Z" itemprop="datePublished">
+    <time datetime="2015-01-20T07:12:43.000Z" itemprop="datePublished">
       <a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inet_create/" title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字" itemprop="url" class="article-time">1月 20 2015</a>
     </time>
 
@@ -102,7 +102,7 @@
           INET_PROTOSW_ICSK,
 },
 </code></pre><p>用户层调用socket相关系统函数后，内核层首先会调用struct<br>socket-&gt;ops中的函数，然后在调用strcut sock-&gt;port中的函数。见下图</p>
-<p><img src="/img/Figure_3.3.png" alt="Figure_3.3" width="800" height="400"> </p>
+<p><img src="/img/Figure_3.3.png" alt="Figure_3.3.png" width="800" height="400"> </p>
 
 <h2 id="inet_create函数">inet_create函数</h2>
 <p>假设用户的命令是socket(PF_INET, SOCK_STREAM, 0/<em>IPPROTO_IP = 0 </em>/),则inet_create的参数sock-&gt;type等于SOCK_STREAM, protocl等于0.<br>socket-&gt;type 等于 SOCK_STREAM， protocol等于0</p>
