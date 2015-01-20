@@ -64,7 +64,7 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T03:29:31.000Z" itemprop="datePublished">
+    <time datetime="2015-01-20T04:45:31.000Z" itemprop="datePublished">
       <a href="/2015/01/20/tcp_ip_arch/2014-12-31-socket-layer/" title="TCP/IP--&gt;Socket--&gt;套接字创建流程" itemprop="url" class="article-time">1月 20 2015</a>
     </time>
 
@@ -87,7 +87,10 @@
 		<h2 id="BSD_socket">BSD socket</h2>
 <p>The BSD socket is a framework to the different families of socket that Linux supports.<br>The BSD socket concept is very similar to the VFS (virtual file system) layer.<br>This way different protocol families are supported by Linux, and their services are accessable to the user using a common socket interface.</p>
 <h3 id="VFS">VFS</h3>
-<p>VFS is a framework that provides a common interface to various different file systems/pipe/devices/sockets to the user without user knowing how things are organized inside the kernel.<br><img src="./../../../../../../pic/Figure_3.1.png" alt="Figure_3.1"> </p>
+<p>VFS is a framework that provides a common interface to various different file systems/pipe/devices/sockets to the user without user knowing how things are organized inside the kernel.</p>
+<p><img src="/img/Figure_3.1.png" alt="Figure_3.1" width="800" height="400"> </p>
+
+
 <h2 id="socket()">socket()</h2>
 <p>用户调用socket函数时会调用内核层的sys_socket函数.sys_socket函数通过socket函数传递来的protocol,family<br>,type三个参数来创建对应的(TCP/UDP/RAW等)协议栈。</p>
 <p>socket(family, type, protocol)函数在内核中执行流程：</p>
@@ -141,7 +144,7 @@
 
 }
 </code></pre><p>socket返回一个fd(file descirptor),fd通过VFS可以找到相对应的socket信息。</p>
-<p><img src="./../../../../../../pic/Figure_3.2.png" alt="Figure_3.2" width="800" height="400"> </p>
+<p><img src="/img/Figure_3.2.png" alt="Figure_3.2" width="800" height="400"> </p>
 
   
 	</div>
@@ -167,6 +170,14 @@
 	
 <nav class="article-nav clearfix">
  
+ <div class="prev" >
+ <a href="/2015/01/20/libeio/2015-01-12-libeio_framework/" title="Libeio--libeio流程分析">
+  <strong>上一篇：</strong><br/>
+  <span>
+  Libeio--libeio流程分析</span>
+</a>
+</div>
+
 
 <div class="next">
 <a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"  title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册">
@@ -218,6 +229,7 @@
       <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
     </ul>
 </div>
+
 
   <div class="rsspart">
 	<a href="null" target="_blank" title="rss">RSS 订阅</a>

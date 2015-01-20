@@ -64,7 +64,7 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T02:58:10.000Z" itemprop="datePublished">
+    <time datetime="2015-01-20T06:30:28.000Z" itemprop="datePublished">
       <a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inet_create/" title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字" itemprop="url" class="article-time">1月 20 2015</a>
     </time>
 
@@ -86,7 +86,7 @@
 		
 		<h2 id="创建PF_INET协议族的套接字">创建PF_INET协议族的套接字</h2>
 <p>用户层调用socket(family,type,protocol)函数（<a href="http://don6hao.github.io/blog/2014/12/31/socket-layer.html" target="_blank" rel="external">socket函数执行流程</a>)，<br>若family等于PF_INET协议族的话，内核最终会调用inet_create(若type等于SOCK_STREAM,则inet_create-&gt;tcp_v4_init_sock)函数来创建套接字。</p>
-<p><img src="./../../../../../../pic/Figure_3.4.png" alt="Figure_3.2" width="300" height="200"> </p>
+<p><img src="/img/Figure_3.4.png" alt="Figure_3.4.png" width="300" height="200"> </p>
 
 <h2 id="inetsw_array">inetsw_array</h2>
 <p>inetsw_array包含支持PF_INET协议族的各种IP协议（TCP，UDP，RAW）的所有信息，在inet_create函数中将使用struct sock和struct socket来存储这些信息已方便当前套接字使用。</p>
@@ -102,7 +102,7 @@
           INET_PROTOSW_ICSK,
 },
 </code></pre><p>用户层调用socket相关系统函数后，内核层首先会调用struct<br>socket-&gt;ops中的函数，然后在调用strcut sock-&gt;port中的函数。见下图</p>
-<p><img src="./../../../../../../pic/Figure_3.3.png" alt="Figure_3.3" width="800" height="400"> </p>
+<p><img src="/img/Figure_3.3.png" alt="Figure_3.3" width="800" height="400"> </p>
 
 <h2 id="inet_create函数">inet_create函数</h2>
 <p>假设用户的命令是socket(PF_INET, SOCK_STREAM, 0/<em>IPPROTO_IP = 0 </em>/),则inet_create的参数sock-&gt;type等于SOCK_STREAM, protocl等于0.<br>socket-&gt;type 等于 SOCK_STREAM， protocol等于0</p>
@@ -121,6 +121,7 @@
     <span class="comment">/*
      * SS_UNCONNECTED 处于未连接状态
      */</span>
+
     sock-&gt;state = SS_UNCONNECTED;
 
     <span class="comment">/* Look for the requested type/protocol pair. */</span>
@@ -138,6 +139,7 @@ lookup_protocol:
         } <span class="title">else</span> </span>{
 </code></pre><p>protocol等于IPPROTO_IP不等于IPPROTO_TCP(answer-&gt;protocl),把answer-&gt;protocol(IPPROTO_TCP)复制给protocol</p>
 <pre><code>            <span class="comment">/* Check for the two wild cases. */</span>
+
             <span class="keyword">if</span> (<span class="variable">IPPROTO_IP =</span>= protocol) {
                 <span class="variable">protocol =</span> answer-&gt;protocol;
                 break;
@@ -174,10 +176,10 @@ lookup_protocol:
         sk-&gt;<span class="variable">sk_reuse =</span> <span class="number">1</span>;
 
     <span class="comment">/*
-     *static inline struct inet_sock *inet_sk(const struct sock *sk)
-     *{
-     *   return (struct inet_sock *)sk;
-     *}
+     * static inline struct inet_sock *inet_sk(const struct sock *sk)
+     * {
+     *     return (struct inet_sock *)sk;
+     * }
      */</span>
     <span class="variable">inet =</span> inet_sk(sk);
     <span class="comment">/* INET_PROTOSW_ICSK:an inet_connection_sock */</span>
@@ -260,19 +262,11 @@ out_rcu_unlock:
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册">
-  <strong>上一篇：</strong><br/>
-  <span>
-  TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/20/read/2015-01-16-read-you_should_write_blogs/"  title="阅读--you should write blogs">
+<a href="/2015/01/20/nginx/2015-01-05-nginx-master-handle-signal/"  title="Nginx--master进程的信号处理">
  <strong>下一篇：</strong><br/> 
- <span>阅读--you should write blogs
+ <span>Nginx--master进程的信号处理
 </span>
 </a>
 </div>
@@ -319,6 +313,7 @@ out_rcu_unlock:
       <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
     </ul>
 </div>
+
 
   <div class="rsspart">
 	<a href="null" target="_blank" title="rss">RSS 订阅</a>

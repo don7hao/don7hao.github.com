@@ -64,7 +64,7 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T02:54:47.000Z" itemprop="datePublished">
+    <time datetime="2015-01-20T04:49:15.000Z" itemprop="datePublished">
       <a href="/2015/01/20/libeio/2015-01-12-libeio_framework/" title="Libeio--libeio流程分析" itemprop="url" class="article-time">1月 20 2015</a>
     </time>
 
@@ -84,7 +84,7 @@
 		
 		</div>
 		
-		<p><img src="./../../../../../../pic/libeio_framework_1.png" alt="libeio_framework_1.png"> </p>
+		<p><img src="/img/libeio_framework_1.png" alt="libeio_framework_1.png"> </p>
 <p>libeio的异步非阻塞实现是通过<a href="http://don6hao.github.io/blog/2015/01/12/libeio_data.html" target="_blank" rel="external">多线程/队列/锁等方法</a>来实现，线程间通信机制是由使用者自己设计的（下面的测试代码是通过管道来实现的）。</p>
 <p>执行的大概步骤：</p>
 <p>1.主线程首先通过eio_init函数建立线程间的通信机制（这个机制是要使用者通过设计want_poll和done_poll来实现线程间通信）。</p>
@@ -478,18 +478,18 @@ etp_poll (void)
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/20/python/2014-12-31-函数式编程/" title="Python--函数式编程">
+ <a href="/2015/01/20/nginx/2015-01-05-nginx-master-handle-signal/" title="Nginx--master进程的信号处理">
   <strong>上一篇：</strong><br/>
   <span>
-  Python--函数式编程</span>
+  Nginx--master进程的信号处理</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/20/nginx/2015-01-05-nginx-master-handle-signal/"  title="Nginx--master进程的信号处理">
+<a href="/2015/01/20/tcp_ip_arch/2014-12-31-socket-layer/"  title="TCP/IP--&gt;Socket--&gt;套接字创建流程">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--master进程的信号处理
+ <span>TCP/IP--&gt;Socket--&gt;套接字创建流程
 </span>
 </a>
 </div>
@@ -536,6 +536,7 @@ etp_poll (void)
       <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
     </ul>
 </div>
+
 
   <div class="rsspart">
 	<a href="null" target="_blank" title="rss">RSS 订阅</a>

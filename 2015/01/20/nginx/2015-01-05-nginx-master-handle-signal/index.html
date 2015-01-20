@@ -64,7 +64,7 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T02:54:47.000Z" itemprop="datePublished">
+    <time datetime="2015-01-20T04:49:58.000Z" itemprop="datePublished">
       <a href="/2015/01/20/nginx/2015-01-05-nginx-master-handle-signal/" title="Nginx--master进程的信号处理" itemprop="url" class="article-time">1月 20 2015</a>
     </time>
 
@@ -88,7 +88,7 @@
 <p>master进程主要负责监控worker子进程务、重启服务、平滑升级、更换日志文件、配置文件实时生效等功能，不需要处理网络事件，不负责业务的执行。</p>
 </blockquote>
 <h2 id="master进程全貌图">master进程全貌图</h2>
-<p><img src="./../../../../../../pic/parent_handle_signal.png" alt="parent_handle_signal"> </p>
+<p><img src="/img/parent_handle_signal.png" alt="parent_handle_signal"> </p>
 <h2 id="master进程中信号的定义:">master进程中信号的定义:</h2>
 <table>
 <thead>
@@ -426,18 +426,18 @@ if (ngx_change_binary) {
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/20/libeio/2015-01-12-libeio_framework/" title="Libeio--libeio流程分析">
+ <a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inet_create/" title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
   <strong>上一篇：</strong><br/>
   <span>
-  Libeio--libeio流程分析</span>
+  TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/20/nginx/2015-01-04-nginx-ipc/"  title="Nginx--进程间的消息传递">
+<a href="/2015/01/20/libeio/2015-01-12-libeio_framework/"  title="Libeio--libeio流程分析">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--进程间的消息传递
+ <span>Libeio--libeio流程分析
 </span>
 </a>
 </div>
@@ -484,6 +484,7 @@ if (ngx_change_binary) {
       <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
     </ul>
 </div>
+
 
   <div class="rsspart">
 	<a href="null" target="_blank" title="rss">RSS 订阅</a>

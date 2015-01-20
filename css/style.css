@@ -1125,7 +1125,7 @@ article .article-content ol li>code,
 article .article-content p code,
 article .article-content strong code,
 article .article-content em code {
-  font-family: Monaco, Menlo, Consolas, Courier New, monospace;
+  font-family: monospace;
   background: #eee;
   color: #d14;
   border: 1px solid #d6d6d6;
@@ -1153,7 +1153,9 @@ article .article-content p a {
 article .article-content img,
 article .article-content video,
 article .article-content figure img {
-  max-width: 70%;
+  max-width: 80%;
+  display: block;
+  margin: auto;
   height: auto;
   vertical-align: middle;
   padding-top: 0.5em;
@@ -2018,8 +2020,8 @@ section.comment {
 .article-content .highlight,
 .article-content .highlight pre {
   background: #2d2d2d;
-  margin: 0.5em 0;
-  padding: 0.5em 2%;
+  margin: 0.1em 7%;
+  padding: 0;
   color: #ccc;
   line-height: 1.5;
   font-size: 0.1em;
@@ -2044,9 +2046,12 @@ section.comment {
   line-height: 1.5;
 }
 .article-content pre {
-  font-family: Monaco, Menlo, Consolas, Courier New, monospace;
-  background: #f6f5f5;
+  font-family: monospace;
+  background: #e7e7e7;
   border: 1px solid #ccc;
+  border-right-width: 12px;
+  border-left-width: 12px;
+/*border-width: 5px*/
 }
 .article-content pre code {
   color: #333;
@@ -2101,7 +2106,7 @@ section.comment {
 }
 .article-content .gist .gist-file {
   border: none;
-  font-family: Monaco, Menlo, Consolas, Courier New, monospace;
+  font-family: monospace;
   margin: 0;
 }
 .article-content .gist .gist-file .gist-data {
@@ -2138,7 +2143,7 @@ section.comment {
 }
 pre .comment,
 pre .title {
-  color: #ececec;
+  color: #69c;
 }
 pre .variable,
 pre .attribute,
