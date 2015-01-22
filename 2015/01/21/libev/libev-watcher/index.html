@@ -1,0 +1,616 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>libev-watcher | don7hao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="don7hao">
+    
+    <meta name="description" content="watcher
+watcher向事件循环提供了统一的调用接口（按类型区分）;wathcer是外部代码的注入口，维护着具体的不同类型watcher信息，如：绑定的回调函数，watcher的优先级，是否激活等。
+watcher的配置
+evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_s">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="don6hao" />
+    <meta name="twitter:title" content="libev-watcher | don7hao&#39;s blog" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="don7hao&#39;s blog">don7hao&#39;s blog</a></h1>
+				<h2 class="blog-motto"><a href="/">Write it step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/categories">目录</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li><form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:don7hao.github.com">
+					</form></li>
+				</ul>
+			</nav>
+</div>
+    </header>
+    <div id="wrap">
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+    <time datetime="2015-01-21T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/21/libev/libev-watcher/" title="libev-watcher" itemprop="url" class="article-time">1月 21 2015</a>
+    </time>
+
+  <h1 itemprop="name" class="article-name">
+    
+      <a href="/2015/01/21/libev/libev-watcher/" title="libev-watcher" itemprop="url"><span>libev-watcher</span></a>
+  </h1>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#watcher"><span class="toc-number">1.</span> <span class="toc-text">watcher</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的配置"><span class="toc-number">1.1.</span> <span class="toc-text">watcher的配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的接口"><span class="toc-number">1.2.</span> <span class="toc-text">watcher的接口</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<h1 id="watcher">watcher</h1>
+<p>watcher向事件循环提供了统一的调用接口（按类型区分）;<br>wathcer是外部代码的注入口，维护着具体的不同类型watcher信息，如：绑定的回调函数，watcher的优先级，是否激活等。</p>
+<h2 id="watcher的配置">watcher的配置</h2>
+<p>ev<em>init(事件)—&gt;ev</em>事件<em>set()—&gt;ev</em>事件_start()</p>
+<p>测试代码:定义一个信号watcher，当接收到SIGINT信号时进入回调signal_do函数。</p>
+<pre><code>ev_singal signal_e;
+
+void signal_do(<span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span>, ev_sinal *signal_e, <span class="keyword">int</span> e)
+{
+    printf(<span class="string">"signal callback!\n"</span>);
+    ev_signal_stop(<span class="keyword">loop</span>, signal_e);
+}
+
+<span class="keyword">int</span> main(<span class="keyword">int</span> argc ,<span class="keyword">char</span> *argv[])
+{
+    <span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span> = ev_default_loop(<span class="number">0</span>);
+
+    ev_singal signal_e;
+    ev_init(&amp;signal_e,signal_do);
+    ev_signal_set(&amp;signal_e,SIGINT); 
+    ev_signal_start(<span class="keyword">loop</span>,&amp;signal_e);
+
+    ev_run(<span class="keyword">loop</span>,<span class="number">0</span>);
+
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+</code></pre><h2 id="watcher的接口">watcher的接口</h2>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">void</span> (*)(<span class="keyword">struct</span> ev_loop *loop, ev_TYPE *watcher, <span class="keyword">int</span> revents) callback; <span class="comment">// callback都是这种类型</span>
+ev_init (ev_TYPE *watcher, callback); <span class="comment">// 初始化watcher</span>
+ev_TYPE_set (ev_TYPE *watcher, [args]); <span class="comment">// 设置watcher</span>
+ev_TYPE_init (ev_TYPE *watcher, callback, [args]); <span class="comment">// 通常使用这个函数最方便，初始化和设置都在这里</span>
+ev_TYPE_start (loop, ev_TYPE *watcher); <span class="comment">// 注册watcher</span>
+ev_TYPE_stop (loop, ev_TYPE *watcher); <span class="comment">// 注销watcher</span>
+ev_set_priority (ev_TYPE *watcher, <span class="keyword">int</span> priority); <span class="comment">// 设置优先级</span>
+ev_feed_event (loop, ev_TYPE *watcher, <span class="keyword">int</span> revents); <span class="comment">// 这个做跨线程通知非常有用，相当于触发了某个事件。</span>
+<span class="keyword">bool</span> ev_is_active (ev_TYPE *watcher); <span class="comment">// watcher是否active.</span>
+<span class="keyword">bool</span> ev_is_pending (ev_TYPE *watcher); <span class="comment">// watcher是否pending.</span>
+<span class="keyword">int</span> ev_clear_pending (loop, ev_TYPE *watcher); <span class="comment">// 清除watcher pending状态并且返回事件</span>
+
+
+
+<span class="preprocessor">#<span class="keyword">define</span> EV_WATCHER(type)     \</span>
+  <span class="keyword">int</span> active; <span class="comment">/* private */</span>     \
+  <span class="keyword">int</span> pending; <span class="comment">/* private */</span>     \
+  EV_DECL_PRIORITY <span class="comment">/* private */</span>     \
+  EV_COMMON <span class="comment">/* rw */</span>     \
+  EV_CB_DECLARE (type) <span class="comment">/* private */</span>
+
+<span class="preprocessor"># <span class="keyword">define</span> EV_DECL_PRIORITY int priority;</span>
+<span class="preprocessor"># <span class="keyword">define</span> EV_COMMON void *data;</span>
+<span class="preprocessor"># <span class="keyword">define</span> EV_CB_DECLARE(type) void (*cb)(EV_P_ struct type *w, int revents);</span>
+
+<span class="preprocessor">#<span class="keyword">define</span> EV_WATCHER_LIST(type)    \</span>
+  EV_WATCHER (type)    \
+  <span class="keyword">struct</span> ev_watcher_list *next; <span class="comment">/* private */</span>
+
+wacther的状态有下面这么几种：
+<span class="number">1.</span> initialiased.调用init函数初始化
+<span class="number">2.</span> active.调用start进行注册
+<span class="number">3.</span> pending.已经触发事件但是没有处理
+<span class="number">4.</span> inactive.调用stop注销。这个状态等同于initialised这个状态。
+
+
+active: 表示当前watcher是否被激活。ev_TYPE_start调用后置位，ev_TYPE_stop调用后复位；
+
+pending: 表示当前watcher有事件就绪，等待处理。pending的值其实就是当前watcher在pendings队列中的下标；
+
+priority: 是当前watcher的优先级；
+
+data: 附加数据指针，用来在watcher中携带额外所需的数据；
+
+cb：是事件触发后的回调函数定义。
+
+
+IO WATCHER
+创建io事件的watcher，每类watcher负责一类特定时间
+
+    ev_io_init (&amp;stdin_watcher, stdin_cb, <span class="comment">/*STDIN_FILENO*/</span> <span class="number">0</span>, EV_READ);
+
+
+<span class="comment">/* invoked when fd is either EV_READable or EV_WRITEable */</span>
+<span class="comment">/* revent EV_READ, EV_WRITE */</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> ev_io
+{
+  EV_WATCHER_LIST (ev_io)
+
+  <span class="keyword">int</span> fd;     <span class="comment">/* ro */</span>
+  <span class="keyword">int</span> events; <span class="comment">/* ro */</span>
+} ev_io;
+
+ev_io stdin_watcher;
+
+ev_io_init (&amp;stdin_watcher, stdin_cb, <span class="comment">/*STDIN_FILENO*/</span> <span class="number">0</span>, EV_READ);
+
+<span class="preprocessor">#<span class="keyword">define</span> ev_io_init(ev,cb,fd,events)          do { ev_init ((ev), (cb)); ev_io_set ((ev),(fd),(events)); } while (0)</span>
+
+<span class="preprocessor">#<span class="keyword">define</span> ev_init(ev,cb_) do {     \</span>
+  ((ev_watcher *)(<span class="keyword">void</span> *)(ev))-&gt;active  =    \
+  ((ev_watcher *)(<span class="keyword">void</span> *)(ev))-&gt;pending = <span class="number">0</span>;    \
+  ev_set_priority ((ev), <span class="number">0</span>);     \
+  ev_set_cb ((ev), cb_);     \
+} <span class="keyword">while</span> (<span class="number">0</span>)
+
+
+<span class="preprocessor"># <span class="keyword">define</span> ev_set_priority(ev,pri)             ((ev_watcher *)(void *)(ev))-&gt;priority = (pri)</span>
+
+<span class="preprocessor"># <span class="keyword">define</span> ev_set_cb(ev,cb_)                   ev_cb (ev) = (cb_)</span>
+
+<span class="preprocessor">#<span class="keyword">define</span> ev_io_set(ev,fd_,events_)            do { (ev)-&gt;fd = (fd_); (ev)-&gt;events = (events_) | EV__IOFDSET; } while (0)</span>
+
+
+将watcher注册到ev_loop中
+
+    ev_io_start (loop, &amp;stdin_watcher);
+
+
+EV_P_代表<span class="keyword">struct</span> ev_loop *loop
+
+<span class="keyword">void</span> noinline
+ev_io_start (EV_P_ ev_io *w) EV_THROW
+{
+  <span class="keyword">int</span> fd = w-&gt;fd;
+
+  <span class="keyword">if</span> (expect_false (ev_is_active (w)))
+    <span class="keyword">return</span>;
+
+  assert ((<span class="string">"libev: ev_io_start called with negative fd"</span>, fd &gt;= <span class="number">0</span>));
+  assert ((<span class="string">"libev: ev_io_start called with illegal event mask"</span>, !(w-&gt;events &amp; ~(EV__IOFDSET | EV_READ | EV_WRITE))));
+
+  EV_FREQUENT_CHECK;
+
+   <span class="comment">/* 传入三个参数EV_A_(loop), (typedef ev_watcher *)w和1 */</span>
+  ev_start (EV_A_ (W)w, <span class="number">1</span>);
+
+  <span class="comment">/* 
+    * 初始化loop-&gt;anfds
+    *#define anfdmax ((loop)-&gt;anfdmax)
+    *#define anfds ((loop)-&gt;anfds)
+    */</span>
+  array_needsize (ANFD, anfds, anfdmax, fd + <span class="number">1</span>, array_init_zero);
+
+  <span class="comment">/* 
+    * 把w(watcher)挂到列表上
+    */</span>
+  wlist_add (&amp;anfds[fd].head, (WL)w);
+
+  <span class="comment">/* common bug, apparently */</span>
+  assert ((<span class="string">"libev: ev_io_start called with corrupted watcher"</span>, ((WL)w)-&gt;next != (WL)w));
+
+  fd_change (EV_A_ fd, w-&gt;events &amp; EV__IOFDSET | EV_ANFD_REIFY);
+  w-&gt;events &amp;= ~EV__IOFDSET;
+
+  EV_FREQUENT_CHECK;
+}
+
+
+inline_speed <span class="keyword">void</span>
+ev_start (EV_P_ W w, <span class="keyword">int</span> active)
+{
+  pri_adjust (EV_A_ w);
+  w-&gt;active = active; <span class="comment">/* 激活事件 */</span>
+  ev_ref (EV_A);
+}
+
+<span class="comment">/* 获取优先级若超出范围则进行调整 */</span>
+inline_size <span class="keyword">void</span>
+pri_adjust (EV_P_ W w)
+{
+  <span class="keyword">int</span> pri = ev_priority (w); 
+  pri = pri &lt; EV_MINPRI ? EV_MINPRI : pri;
+  pri = pri &gt; EV_MAXPRI ? EV_MAXPRI : pri;
+  ev_set_priority (w, pri);
+}
+
+
+<span class="keyword">void</span>
+ev_ref (EV_P) EV_THROW
+{
+  ++activecnt;
+}
+
+
+<span class="preprocessor">#<span class="keyword">define</span> array_init_zero(base,count)    \</span>
+  <span class="built_in">memset</span> ((<span class="keyword">void</span> *)(base), <span class="number">0</span>, <span class="keyword">sizeof</span> (*(base)) * (count))
+
+<span class="preprocessor">#<span class="keyword">define</span> array_needsize(type,base,cur,cnt,init)     \</span>
+  <span class="keyword">if</span> (expect_false ((cnt) &gt; (cur)))     \
+    {     \
+      <span class="keyword">int</span> ecb_unused ocur_ = (cur);     \
+      (base) = (type *)array_realloc     \
+         (<span class="keyword">sizeof</span> (type), (base), &amp;(cur), (cnt));     \
+      init ((base) + (ocur_), (cur) - ocur_);     \
+    }
+
+
+
+
+<span class="keyword">typedef</span> ev_watcher_list *WL;
+
+<span class="comment">/* file descriptor info structure */</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span>
+{
+  WL head;
+  <span class="keyword">unsigned</span> <span class="keyword">char</span> events; <span class="comment">/* the events watched for */</span>
+  <span class="keyword">unsigned</span> <span class="keyword">char</span> reify;  <span class="comment">/* flag set when this ANFD needs reification (EV_ANFD_REIFY, EV__IOFDSET) */</span>
+  <span class="keyword">unsigned</span> <span class="keyword">char</span> emask;  <span class="comment">/* the epoll backend stores the actual kernel mask in here */</span>
+  <span class="keyword">unsigned</span> <span class="keyword">char</span> unused;
+<span class="preprocessor">#<span class="keyword">if</span> EV_USE_EPOLL</span>
+  <span class="keyword">unsigned</span> <span class="keyword">int</span> egen;    <span class="comment">/* generation counter to counter epoll bugs */</span>
+<span class="preprocessor">#<span class="keyword">endif</span></span>
+<span class="preprocessor">#<span class="keyword">if</span> EV_SELECT_IS_WINSOCKET || EV_USE_IOCP</span>
+  SOCKET handle;
+<span class="preprocessor">#<span class="keyword">endif</span></span>
+<span class="preprocessor">#<span class="keyword">if</span> EV_USE_IOCP</span>
+  OVERLAPPED or, ow;
+<span class="preprocessor">#<span class="keyword">endif</span></span>
+} ANFD;
+
+
+<span class="comment">/* something about the given fd changed */</span>
+inline_size <span class="keyword">void</span>
+fd_change (EV_P_ <span class="keyword">int</span> fd, <span class="keyword">int</span> flags)
+{
+  <span class="keyword">unsigned</span> <span class="keyword">char</span> reify = anfds [fd].reify;
+  anfds [fd].reify |= flags;
+
+  <span class="keyword">if</span> (expect_true (!reify))
+    {
+      ++fdchangecnt;
+      array_needsize (<span class="keyword">int</span>, fdchanges, fdchangemax, fdchangecnt, EMPTY2);
+      fdchanges [fdchangecnt - <span class="number">1</span>] = fd;
+    }
+}
+</code></pre>  
+	</div>
+		<footer class="article-footer clearfix">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/libev/">libev</a>
+</div>
+
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://don7hao.github.com/2015/01/21/libev/libev-watcher/" data-title="libev-watcher | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/01/22/python/2014-12-31-协程/" title="Python--协程">
+  <strong>上一篇：</strong><br/>
+  <span>
+  Python--协程</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/01/20/tcp_ip_arch/2015-01-07-socket-inet_create/"  title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
+ <strong>下一篇：</strong><br/> 
+ <span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread"></div>
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/Libeio/" title="Libeio">Libeio<sup>2</sup></a></li>
+		
+			<li><a href="/categories/Nginx/" title="Nginx">Nginx<sup>5</sup></a></li>
+		
+			<li><a href="/categories/Python/" title="Python">Python<sup>2</sup></a></li>
+		
+			<li><a href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/" title="TCP_IP.Architecture.Design.and.Implementation.in.Linux">TCP_IP.Architecture.Design.and.Implementation.in.Linux<sup>3</sup></a></li>
+		
+			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
+		
+			<li><a href="/categories/programming/" title="programming">programming<sup>1</sup></a></li>
+		
+			<li><a href="/categories/read/" title="read">read<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+      <li><a href="http://yangjian.me" target="_blank" title="YangJian">Alimon's Blog</a></li>
+      <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
+    </ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="null" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+</div>
+    <footer><div id="footer" >
+	
+    <div class="social-font" class="clearfix">
+        
+        
+        <a href="https://github.com/don7hao" target="_blank" class="icon-github" title="github"></a>
+        
+        
+        
+        <a href="https://twitter.com/don6hao" target="_blank" class="icon-twitter" title="twitter"></a>
+        
+        
+        
+        
+        <a href="mailto:don7hao@gmail.com" target="_blank" class="icon-email" title="Email Me"></a>
+        
+    </div>
+	<section class="info">
+		<p class="l1">
+            This is don7hao&#39;s personal blog.
+        </p>
+            <!-- <br/> -->
+        <p class="l2">
+			好记性不如烂笔头
+        </p>
+	</section>
+	 
+		<p class="copyright">Powered by <a href="http://zespia.tw/hexo/" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/RagingCat/hexo-theme-ragingcat" target="_blank" title="hexo-theme-ragingcat">Raging Cat</a> © 2015
+		
+		<a href="http://don7hao.github.com/about" target="_blank" title="don7hao">don7hao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize();
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"don7hao"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0]
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+});
+</script>
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'null', 'don7hao.info');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+  </body>
+</html>
