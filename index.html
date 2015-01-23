@@ -102,9 +102,10 @@
     
      
            <p itemprop="description" >watcher
-watcher向事件循环提供了统一的调用接口（按类型区分）;wathcer是外部代码的注入口，维护着具体的不同类型watcher信息，如：绑定的回调函数，watcher的优先级，是否激活等。
+watcher代表你告诉libev你关心的事件，比如io, timer, signal等。
 watcher的配置
-evinit(事件)—&amp;gt;ev事件set()—...</p>
+evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_start()
+测试用例:我创建一个信号事件，当接收到SIGINT信号时回调sig...</p>
         
     
 

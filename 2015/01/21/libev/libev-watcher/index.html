@@ -10,9 +10,11 @@
     <meta name="author" content="don7hao">
     
     <meta name="description" content="watcher
-watcher向事件循环提供了统一的调用接口（按类型区分）;wathcer是外部代码的注入口，维护着具体的不同类型watcher信息，如：绑定的回调函数，watcher的优先级，是否激活等。
+watcher代表你告诉libev你关心的事件，比如io, timer, signal等。
 watcher的配置
-evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_s">
+evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_start()
+测试用例:我创建一个信号事件，当接收到SIGINT信号时回调signal_do函数。
+">
     
     
     
@@ -81,15 +83,15 @@ evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_s">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#watcher"><span class="toc-number">1.</span> <span class="toc-text">watcher</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的配置"><span class="toc-number">1.1.</span> <span class="toc-text">watcher的配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的接口"><span class="toc-number">1.2.</span> <span class="toc-text">watcher的接口</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#watcher"><span class="toc-number">1.</span> <span class="toc-text">watcher</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的配置"><span class="toc-number">1.1.</span> <span class="toc-text">watcher的配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher通用接口"><span class="toc-number">1.2.</span> <span class="toc-text">watcher通用接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher_代码分析:"><span class="toc-number">1.3.</span> <span class="toc-text">watcher 代码分析:</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher结构体"><span class="toc-number">1.3.1.</span> <span class="toc-text">signal　watcher结构体</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#struct_ev_signal结构体"><span class="toc-number">1.3.1.1.</span> <span class="toc-text">struct ev_signal结构体</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#signals"><span class="toc-number">1.3.1.2.</span> <span class="toc-text">signals</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher初始化:"><span class="toc-number">1.3.2.</span> <span class="toc-text">signal watcher初始化:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher配置信号"><span class="toc-number">1.3.3.</span> <span class="toc-text">signal watcher配置信号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher启动"><span class="toc-number">1.3.4.</span> <span class="toc-text">signal watcher启动</span></a></li></ol></li></ol></li></ol>
 		
 		</div>
 		
 		<h1 id="watcher">watcher</h1>
-<p>watcher向事件循环提供了统一的调用接口（按类型区分）;<br>wathcer是外部代码的注入口，维护着具体的不同类型watcher信息，如：绑定的回调函数，watcher的优先级，是否激活等。</p>
+<p>watcher代表你告诉libev你关心的事件，比如io, timer, signal等。</p>
 <h2 id="watcher的配置">watcher的配置</h2>
 <p>ev<em>init(事件)—&gt;ev</em>事件<em>set()—&gt;ev</em>事件_start()</p>
-<p>测试代码:定义一个信号watcher，当接收到SIGINT信号时进入回调signal_do函数。</p>
+<p>测试用例:我创建一个信号事件，当接收到SIGINT信号时回调signal_do函数。</p>
 <pre><code>ev_singal signal_e;
 
 void signal_do(<span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span>, ev_sinal *signal_e, <span class="keyword">int</span> e)
@@ -111,214 +113,155 @@ void signal_do(<span class="keyword">struct</span> ev_loop *<span class="keyword
 
     <span class="keyword">return</span> <span class="number">0</span>;
 }
-</code></pre><h2 id="watcher的接口">watcher的接口</h2>
-<pre><code><span class="keyword">typedef</span> <span class="keyword">void</span> (*)(<span class="keyword">struct</span> ev_loop *loop, ev_TYPE *watcher, <span class="keyword">int</span> revents) callback; <span class="comment">// callback都是这种类型</span>
+</code></pre><h2 id="watcher通用接口">watcher通用接口</h2>
+<pre><code>typedef void (*)(<span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span>, ev_TYPE *watcher, <span class="keyword">int</span> revents) callback; <span class="comment">// callback都是这种类型</span>
 ev_init (ev_TYPE *watcher, callback); <span class="comment">// 初始化watcher</span>
 ev_TYPE_set (ev_TYPE *watcher, [args]); <span class="comment">// 设置watcher</span>
 ev_TYPE_init (ev_TYPE *watcher, callback, [args]); <span class="comment">// 通常使用这个函数最方便，初始化和设置都在这里</span>
-ev_TYPE_start (loop, ev_TYPE *watcher); <span class="comment">// 注册watcher</span>
-ev_TYPE_stop (loop, ev_TYPE *watcher); <span class="comment">// 注销watcher</span>
+ev_TYPE_start (<span class="keyword">loop</span>, ev_TYPE *watcher); <span class="comment">// 注册watcher</span>
+ev_TYPE_stop (<span class="keyword">loop</span>, ev_TYPE *watcher); <span class="comment">// 注销watcher</span>
 ev_set_priority (ev_TYPE *watcher, <span class="keyword">int</span> priority); <span class="comment">// 设置优先级</span>
-ev_feed_event (loop, ev_TYPE *watcher, <span class="keyword">int</span> revents); <span class="comment">// 这个做跨线程通知非常有用，相当于触发了某个事件。</span>
+ev_feed_event (<span class="keyword">loop</span>, ev_TYPE *watcher, <span class="keyword">int</span> revents); <span class="comment">// 这个做跨线程通知非常有用，相当于触发了某个事件。</span>
 <span class="keyword">bool</span> ev_is_active (ev_TYPE *watcher); <span class="comment">// watcher是否active.</span>
 <span class="keyword">bool</span> ev_is_pending (ev_TYPE *watcher); <span class="comment">// watcher是否pending.</span>
-<span class="keyword">int</span> ev_clear_pending (loop, ev_TYPE *watcher); <span class="comment">// 清除watcher pending状态并且返回事件</span>
-
-
-
-<span class="preprocessor">#<span class="keyword">define</span> EV_WATCHER(type)     \</span>
-  <span class="keyword">int</span> active; <span class="comment">/* private */</span>     \
-  <span class="keyword">int</span> pending; <span class="comment">/* private */</span>     \
-  EV_DECL_PRIORITY <span class="comment">/* private */</span>     \
-  EV_COMMON <span class="comment">/* rw */</span>     \
-  EV_CB_DECLARE (type) <span class="comment">/* private */</span>
-
-<span class="preprocessor"># <span class="keyword">define</span> EV_DECL_PRIORITY int priority;</span>
-<span class="preprocessor"># <span class="keyword">define</span> EV_COMMON void *data;</span>
-<span class="preprocessor"># <span class="keyword">define</span> EV_CB_DECLARE(type) void (*cb)(EV_P_ struct type *w, int revents);</span>
-
-<span class="preprocessor">#<span class="keyword">define</span> EV_WATCHER_LIST(type)    \</span>
-  EV_WATCHER (type)    \
-  <span class="keyword">struct</span> ev_watcher_list *next; <span class="comment">/* private */</span>
-
-wacther的状态有下面这么几种：
-<span class="number">1.</span> initialiased.调用init函数初始化
-<span class="number">2.</span> active.调用start进行注册
-<span class="number">3.</span> pending.已经触发事件但是没有处理
-<span class="number">4.</span> inactive.调用stop注销。这个状态等同于initialised这个状态。
-
-
-active: 表示当前watcher是否被激活。ev_TYPE_start调用后置位，ev_TYPE_stop调用后复位；
-
-pending: 表示当前watcher有事件就绪，等待处理。pending的值其实就是当前watcher在pendings队列中的下标；
-
-priority: 是当前watcher的优先级；
-
-data: 附加数据指针，用来在watcher中携带额外所需的数据；
-
-cb：是事件触发后的回调函数定义。
-
-
-IO WATCHER
-创建io事件的watcher，每类watcher负责一类特定时间
-
-    ev_io_init (&amp;stdin_watcher, stdin_cb, <span class="comment">/*STDIN_FILENO*/</span> <span class="number">0</span>, EV_READ);
-
-
-<span class="comment">/* invoked when fd is either EV_READable or EV_WRITEable */</span>
-<span class="comment">/* revent EV_READ, EV_WRITE */</span>
-<span class="keyword">typedef</span> <span class="keyword">struct</span> ev_io
+<span class="keyword">int</span> ev_clear_pending (<span class="keyword">loop</span>, ev_TYPE *watcher); <span class="comment">// 清除watcher pending状态并且返回事件</span>
+</code></pre><h2 id="watcher_代码分析:">watcher 代码分析:</h2>
+<h3 id="signal_watcher结构体">signal　watcher结构体</h3>
+<h4 id="struct_ev_signal结构体">struct ev_signal结构体</h4>
+<pre><code><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ev_signal</span>
+</span>{
+  EV_WATCHER_LIST (ev_signal)
+  int signum; <span class="comment">/* ro */</span>
+} ev_signal;
+</code></pre><p>libev里面很多都是宏声明结构体和函数，下面就是struct ev_signal里宏被展开后的形式:</p>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> ev_signal
 {
-  EV_WATCHER_LIST (ev_io)
+    <span class="comment">/* active表示事件是否被激活 */</span>
+    <span class="keyword">int</span> active;
+    <span class="comment">/* pending表示事件就绪，等待处理 */</span>
+    <span class="keyword">int</span> pending; 
+    <span class="comment">/* priority当前事件优先级 */</span>
+    <span class="keyword">int</span> priority;
+    <span class="comment">/* data附件数据指针，用来在时间中携带额外的数据 */</span>
+    <span class="keyword">void</span> *data;
+    <span class="comment">/* cb是事件触发后的回调函数 */</span>
+    <span class="keyword">void</span> (*cb)(EV_P_ <span class="keyword">struct</span> type *w, <span class="keyword">int</span> revents);
+    <span class="keyword">struct</span> ev_watcher_list *next;
+    <span class="keyword">int</span> signum; <span class="comment">/* ro */</span>
+} ev_signal;
+</code></pre><h4 id="signals">signals</h4>
+<p>signals存储着某信号watcher链表，某信号是否激活，指向loop的指针。</p>
+<pre><code>typedef <span class="keyword">struct</span>
+{
+    EV_ATOMIC_T pending;　
+    <span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span>；
+    WL head;
+} ANSIG;
 
-  <span class="keyword">int</span> fd;     <span class="comment">/* ro */</span>
-  <span class="keyword">int</span> events; <span class="comment">/* ro */</span>
-} ev_io;
+<span class="keyword">static</span> ANSIG signals [EV_NSIG - <span class="number">1</span>];
+</code></pre><h3 id="signal_watcher初始化:">signal watcher初始化:</h3>
+<pre><code>ev_init(&amp;signal_e, signal_do);
 
-ev_io stdin_watcher;
-
-ev_io_init (&amp;stdin_watcher, stdin_cb, <span class="comment">/*STDIN_FILENO*/</span> <span class="number">0</span>, EV_READ);
-
-<span class="preprocessor">#<span class="keyword">define</span> ev_io_init(ev,cb,fd,events)          do { ev_init ((ev), (cb)); ev_io_set ((ev),(fd),(events)); } while (0)</span>
-
-<span class="preprocessor">#<span class="keyword">define</span> ev_init(ev,cb_) do {     \</span>
-  ((ev_watcher *)(<span class="keyword">void</span> *)(ev))-&gt;active  =    \
-  ((ev_watcher *)(<span class="keyword">void</span> *)(ev))-&gt;pending = <span class="number">0</span>;    \
-  ev_set_priority ((ev), <span class="number">0</span>);     \
-  ev_set_cb ((ev), cb_);     \
+<span class="comment">#define ev_init(ev,cb_) do {            \</span>
+    <span class="function"><span class="params">((ev_watcher *)(<span class="reserved">void</span> *)(ev))</span>-&gt;</span>active  =    \
+    <span class="function"><span class="params">((ev_watcher *)(<span class="reserved">void</span> *)(ev))</span>-&gt;</span>pending = <span class="number">0</span>;    \
+    ev_set_priority ((ev), <span class="number">0</span>);            \
+    ev_set_cb ((ev), cb_);            \
 } <span class="keyword">while</span> (<span class="number">0</span>)
+</code></pre><h3 id="signal_watcher配置信号">signal watcher配置信号</h3>
+<pre><code>ev_signal_set(<span class="subst">&amp;</span>signal_e,SIGINT)
+<span class="variable">#define</span> ev_signal_set(ev,signum_)            <span class="keyword">do</span> { (ev)<span class="subst">-&gt;</span>signum <span class="subst">=</span> (signum_); } <span class="keyword">while</span> (<span class="number">0</span>);
+</code></pre><h3 id="signal_watcher启动">signal watcher启动</h3>
+<pre><code>ev_signal_start(<span class="keyword">loop</span>,&amp;signal_e);
 
-
-<span class="preprocessor"># <span class="keyword">define</span> ev_set_priority(ev,pri)             ((ev_watcher *)(void *)(ev))-&gt;priority = (pri)</span>
-
-<span class="preprocessor"># <span class="keyword">define</span> ev_set_cb(ev,cb_)                   ev_cb (ev) = (cb_)</span>
-
-<span class="preprocessor">#<span class="keyword">define</span> ev_io_set(ev,fd_,events_)            do { (ev)-&gt;fd = (fd_); (ev)-&gt;events = (events_) | EV__IOFDSET; } while (0)</span>
-
-
-将watcher注册到ev_loop中
-
-    ev_io_start (loop, &amp;stdin_watcher);
-
-
-EV_P_代表<span class="keyword">struct</span> ev_loop *loop
-
-<span class="keyword">void</span> noinline
-ev_io_start (EV_P_ ev_io *w) EV_THROW
+void noinline
+ev_signal_start (<span class="keyword">struct</span> ev_loop *<span class="keyword">loop</span>,  ev_signal *w) EV_THROW
 {
-  <span class="keyword">int</span> fd = w-&gt;fd;
+    <span class="keyword">if</span> (expect_false (ev_is_active (w)))
+        <span class="keyword">return</span>;
 
-  <span class="keyword">if</span> (expect_false (ev_is_active (w)))
-    <span class="keyword">return</span>;
+    signals [w-&gt;signum - <span class="number">1</span>].<span class="keyword">loop</span> = <span class="keyword">loop</span>;
+    <span class="comment">/* # define EV_FREQUENT_CHECK ev_verify (EV_A)
+     * 调用ev_verify(loop)
+     */</span>
+    EV_FREQUENT_CHECK;
 
-  assert ((<span class="string">"libev: ev_io_start called with negative fd"</span>, fd &gt;= <span class="number">0</span>));
-  assert ((<span class="string">"libev: ev_io_start called with illegal event mask"</span>, !(w-&gt;events &amp; ~(EV__IOFDSET | EV_READ | EV_WRITE))));
-
-  EV_FREQUENT_CHECK;
-
-   <span class="comment">/* 传入三个参数EV_A_(loop), (typedef ev_watcher *)w和1 */</span>
-  ev_start (EV_A_ (W)w, <span class="number">1</span>);
-
-  <span class="comment">/* 
-    * 初始化loop-&gt;anfds
-    *#define anfdmax ((loop)-&gt;anfdmax)
-    *#define anfds ((loop)-&gt;anfds)
-    */</span>
-  array_needsize (ANFD, anfds, anfdmax, fd + <span class="number">1</span>, array_init_zero);
-
-  <span class="comment">/* 
-    * 把w(watcher)挂到列表上
-    */</span>
-  wlist_add (&amp;anfds[fd].head, (WL)w);
-
-  <span class="comment">/* common bug, apparently */</span>
-  assert ((<span class="string">"libev: ev_io_start called with corrupted watcher"</span>, ((WL)w)-&gt;next != (WL)w));
-
-  fd_change (EV_A_ fd, w-&gt;events &amp; EV__IOFDSET | EV_ANFD_REIFY);
-  w-&gt;events &amp;= ~EV__IOFDSET;
-
-  EV_FREQUENT_CHECK;
-}
-
-
-inline_speed <span class="keyword">void</span>
-ev_start (EV_P_ W w, <span class="keyword">int</span> active)
-{
-  pri_adjust (EV_A_ w);
-  w-&gt;active = active; <span class="comment">/* 激活事件 */</span>
-  ev_ref (EV_A);
-}
-
-<span class="comment">/* 获取优先级若超出范围则进行调整 */</span>
-inline_size <span class="keyword">void</span>
-pri_adjust (EV_P_ W w)
-{
-  <span class="keyword">int</span> pri = ev_priority (w); 
-  pri = pri &lt; EV_MINPRI ? EV_MINPRI : pri;
-  pri = pri &gt; EV_MAXPRI ? EV_MAXPRI : pri;
-  ev_set_priority (w, pri);
-}
-
-
-<span class="keyword">void</span>
-ev_ref (EV_P) EV_THROW
-{
-  ++activecnt;
-}
-
-
-<span class="preprocessor">#<span class="keyword">define</span> array_init_zero(base,count)    \</span>
-  <span class="built_in">memset</span> ((<span class="keyword">void</span> *)(base), <span class="number">0</span>, <span class="keyword">sizeof</span> (*(base)) * (count))
-
-<span class="preprocessor">#<span class="keyword">define</span> array_needsize(type,base,cur,cnt,init)     \</span>
-  <span class="keyword">if</span> (expect_false ((cnt) &gt; (cur)))     \
-    {     \
-      <span class="keyword">int</span> ecb_unused ocur_ = (cur);     \
-      (base) = (type *)array_realloc     \
-         (<span class="keyword">sizeof</span> (type), (base), &amp;(cur), (cnt));     \
-      init ((base) + (ocur_), (cur) - ocur_);     \
-    }
-
-
-
-
-<span class="keyword">typedef</span> ev_watcher_list *WL;
-
-<span class="comment">/* file descriptor info structure */</span>
-<span class="keyword">typedef</span> <span class="keyword">struct</span>
-{
-  WL head;
-  <span class="keyword">unsigned</span> <span class="keyword">char</span> events; <span class="comment">/* the events watched for */</span>
-  <span class="keyword">unsigned</span> <span class="keyword">char</span> reify;  <span class="comment">/* flag set when this ANFD needs reification (EV_ANFD_REIFY, EV__IOFDSET) */</span>
-  <span class="keyword">unsigned</span> <span class="keyword">char</span> emask;  <span class="comment">/* the epoll backend stores the actual kernel mask in here */</span>
-  <span class="keyword">unsigned</span> <span class="keyword">char</span> unused;
-<span class="preprocessor">#<span class="keyword">if</span> EV_USE_EPOLL</span>
-  <span class="keyword">unsigned</span> <span class="keyword">int</span> egen;    <span class="comment">/* generation counter to counter epoll bugs */</span>
-<span class="preprocessor">#<span class="keyword">endif</span></span>
-<span class="preprocessor">#<span class="keyword">if</span> EV_SELECT_IS_WINSOCKET || EV_USE_IOCP</span>
-  SOCKET handle;
-<span class="preprocessor">#<span class="keyword">endif</span></span>
-<span class="preprocessor">#<span class="keyword">if</span> EV_USE_IOCP</span>
-  OVERLAPPED or, ow;
-<span class="preprocessor">#<span class="keyword">endif</span></span>
-} ANFD;
-
-
-<span class="comment">/* something about the given fd changed */</span>
-inline_size <span class="keyword">void</span>
-fd_change (EV_P_ <span class="keyword">int</span> fd, <span class="keyword">int</span> flags)
-{
-  <span class="keyword">unsigned</span> <span class="keyword">char</span> reify = anfds [fd].reify;
-  anfds [fd].reify |= flags;
-
-  <span class="keyword">if</span> (expect_true (!reify))
+    <span class="comment">/* 此时loop-&gt;sigfd == -1 */</span>
+    <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd == -<span class="number">2</span>)
     {
-      ++fdchangecnt;
-      array_needsize (<span class="keyword">int</span>, fdchanges, fdchangemax, fdchangecnt, EMPTY2);
-      fdchanges [fdchangecnt - <span class="number">1</span>] = fd;
+        <span class="comment">/* 创建一个fd来接受信号
+         * 把信号集loop-&gt;sigfd_set与fd关联起来
+         * 第一个参数为-1表示新建一个signalfd
+         */</span>
+        <span class="keyword">loop</span>-&gt;sigfd = signalfd (-<span class="number">1</span>, &amp;sigfd_set, SFD_NONBLOCK | SFD_CLOEXEC);
+        <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd &lt; <span class="number">0</span> &amp;&amp; errno == EINVAL)
+            <span class="keyword">loop</span>-&gt;sigfd = signalfd (-<span class="number">1</span>, &amp;sigfd_set, <span class="number">0</span>); <span class="comment">/* retry without flags */</span>
+
+        <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd &gt;= <span class="number">0</span>)
+        {
+            fd_intern (<span class="keyword">loop</span>-&gt;sigfd); <span class="comment">/* doing it twice will not hurt */</span>
+            sigemptyset (&amp;<span class="keyword">loop</span>-&gt;sigfd_set);
+            ev_io_init (&amp;<span class="keyword">loop</span>-&gt;sigfd_w, sigfdcb, sigfd, EV_READ);
+            ev_set_priority (&amp;<span class="keyword">loop</span>-&gt;sigfd_w, EV_MAXPRI);
+            ev_io_start (<span class="keyword">loop</span>, &amp;<span class="keyword">loop</span>-&gt;sigfd_w);
+            ev_unref (<span class="keyword">loop</span>); <span class="comment">/* signalfd watcher should not keep loop alive */</span>
+        }
     }
-}
-</code></pre>  
+
+    <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd &gt;= <span class="number">0</span>)
+    {
+        <span class="comment">/* TODO: check .head */</span>
+        sigaddset (&amp;<span class="keyword">loop</span>-&gt;sigfd_set, w-&gt;signum);
+        sigprocmask (SIG_BLOCK, &amp;<span class="keyword">loop</span>-&gt;sigfd_set, <span class="number">0</span>);
+        signalfd (<span class="keyword">loop</span>-&gt;sigfd, &amp;sigfd_set, <span class="number">0</span>);
+    }
+
+    <span class="comment">/* 
+     * typedef ev_watcher *W  
+     * 调整water的优先级
+     * 激活watcher, w-&gt;active = 1
+     * loop-&gt;activecnt++
+     */</span>
+    ev_start (<span class="keyword">loop</span>, (W)w, <span class="number">1</span>);
+</code></pre><p>把SIGINT信号的 watcher挂到signals[SIGINT-1]链表上</p>
+<pre><code>    <span class="comment">/* 
+     * static ANSIG signals [EV_NSIG - 1];
+     * typedef ev_watcher_list *WL;
+     * 把watcher挂到signal[w-&gt;signum-1].head的头部
+     */</span>
+    wlist_add (&amp;signals [w-&gt;signum - <span class="number">1</span>].head, (WL)w);
+
+    <span class="keyword">if</span> (!((WL)w)-&gt;next)
+        <span class="comment">/* 此时loop-&gt;sigfd == -1 */</span>
+        <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd &lt; <span class="number">0</span>) <span class="comment">/*TODO*/</span>
+        {
+            <span class="keyword">struct</span> sigaction sa;
+</code></pre><p>ev_pipe_init初始化管道(loop-&gt;evpipe[2]),通过管道与主进程进行通信</p>
+<pre><code>            evpipe_init (<span class="keyword">loop</span>);
+</code></pre><p>ev_sighandler的作用当接受SIGINT信号时，调用evpipe_write函数触发以下事件：</p>
+<ol>
+<li><p>watcher设置为就绪状态</p>
+</li>
+<li><p>通过管道告知主进程有事件，主进程读到就会把watcher挂到loop-&gt;pendings</p>
+<pre><code>         sa.s<span class="built_in">a_handler</span> = ev_sighandler<span class="comment">;</span>
+         sigfillset (&amp;sa.s<span class="built_in">a_mask</span>)<span class="comment">;</span>
+         /* <span class="keyword">if</span> restarting works we save one iteration */
+         sa.s<span class="built_in">a_flags</span> = S<span class="built_in">A_RESTART</span><span class="comment">;</span>
+         sigaction (w-&gt;signum, &amp;sa, <span class="number">0</span>)<span class="comment">;</span>
+
+         <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;origflags &amp; EVFLAG_NOSIGMASK)
+         {
+             sigemptyset (&amp;sa.s<span class="built_in">a_mask</span>)<span class="comment">;</span>
+             sigaddset (&amp;sa.s<span class="built_in">a_mask</span>, w-&gt;signum)<span class="comment">;</span>
+             sigprocmask (SIG_UNBLOCK, &amp;sa.s<span class="built_in">a_mask</span>, <span class="number">0</span>)<span class="comment">;</span>
+         }
+     }
+
+ EV_FREQUENT_CHECK<span class="comment">;</span>
+</code></pre><p> }</p>
+</li>
+</ol>
+  
 	</div>
 		<footer class="article-footer clearfix">
 
