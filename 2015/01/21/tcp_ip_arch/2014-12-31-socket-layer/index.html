@@ -4,20 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Python--函数式编程 | don7hao&#39;s blog</title>
+    <title>TCP/IP--&gt;Socket--&gt;套接字创建流程 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="匿名函数/闭包/装饰器">
+    <meta name="description" itemprop="description" content="socket fucntion implementation">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Python--函数式编程 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;套接字创建流程 | don7hao&#39;s blog" />
       
-        <meta name="twitter:description" content="匿名函数/闭包/装饰器" />
+        <meta name="twitter:description" content="socket fucntion implementation" />
       
     
     
@@ -64,13 +64,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T02:54:47.000Z" itemprop="datePublished">
-      <a href="/2015/01/20/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url" class="article-time">1月 20 2015</a>
+    <time datetime="2015-01-21T09:08:48.000Z" itemprop="datePublished">
+      <a href="/2015/01/21/tcp_ip_arch/2014-12-31-socket-layer/" title="TCP/IP--&gt;Socket--&gt;套接字创建流程" itemprop="url" class="article-time">1月 21 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/20/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url"><span>Python--函数式编程</span></a>
+      <a href="/2015/01/21/tcp_ip_arch/2014-12-31-socket-layer/" title="TCP/IP--&gt;Socket--&gt;套接字创建流程" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;套接字创建流程</span></a>
   </h1>
 </header>
 
@@ -80,63 +80,79 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#什么是函数式编程"><span class="toc-number">1.</span> <span class="toc-text">什么是函数式编程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名函数"><span class="toc-number">1.1.</span> <span class="toc-text">匿名函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#闭包"><span class="toc-number">1.2.</span> <span class="toc-text">闭包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#装饰器"><span class="toc-number">1.3.</span> <span class="toc-text">装饰器</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#BSD_socket"><span class="toc-number">1.</span> <span class="toc-text">BSD socket</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#VFS"><span class="toc-number">1.1.</span> <span class="toc-text">VFS</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#socket()"><span class="toc-number">2.</span> <span class="toc-text">socket()</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="什么是函数式编程">什么是函数式编程</h1>
-<p>函数式编程就是一种抽象程度很高的编程范式，纯粹的函数式编程语言编写的函数没有变量，因此，任意一个函数，只要输入是确定的，输出就是确定的，这种纯函数我们称之为没有副作用。而允许使用变量的程序设计语言，由于函数内部的变量状态不确定，同样的输入，可能得到不同的输出，因此，这种函数是有副作用的。<br>函数式编程的一个特点就是，允许把函数本身作为参数传入另一个函数，还允许返回一个函数！<br>把函数作为参数传入，或者把函数作为返回值返回，这样的函数称为高阶函数，函数式编程就是指这种高度抽象的编程范式。</p>
-<h2 id="匿名函数">匿名函数</h2>
-<p>关键字lambda表示匿名函数，冒号前面的x表示函数参数。<br>匿名函数有个限制，就是只能有一个表达式，不用写return，返回值就是该表达式的结果。<br>用匿名函数有个好处，因为函数没有名字，不必担心函数名冲突。匿名函数也是一个函数对象，也可以把匿名函数赋值给一个变量，再利用变量来调用该函数：</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">prod</span><span class="params">(x,y)</span>:</span>
-    <span class="keyword">return</span> <span class="keyword">lambda</span> x,y:x*y
-</code></pre><h2 id="闭包">闭包</h2>
-<p>闭包就是根据不同的配置信息得到不同的结果<br>再来看看专业的解释:闭包（Closure）是词法闭包（Lexical Closure）的简称，是引用了自由变量的函数。这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外。所以，有另一种说法认为闭包是由函数和与其相关的引用环境组合而成的实体。<br>通俗的讲就是：如果在一个内部函数里，对在外部作用域（但不是在全局作用域）的变量进行引用，那么内部函数就被认为是闭包（closure）。它只不过是个“内层”的函数，由一个名字（变量）来指代，而这个名字（变量）对于“外层”包含它的函数而言，是本地变量。</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">make_adder</span><span class="params">(addend)</span>:</span>    
-    <span class="function"><span class="keyword">def</span> <span class="title">adder</span><span class="params">(augend)</span>:</span>        
-        <span class="keyword">return</span> augend + addend   
-    <span class="keyword">return</span> adder 
-p = make_adder(<span class="number">23</span>) 
-q = make_adder(<span class="number">44</span>)
-<span class="keyword">print</span> p(<span class="number">100</span>)
-<span class="keyword">print</span> q(<span class="number">100</span>)
-</code></pre><p>执行结果：</p>
-<blockquote>
-<p>123</p>
-<p>144</p>
-</blockquote>
-<p>代码二：<br>    def line_conf(a, b):<br>        def line(x):<br>            return ax + b<br>        return line</p>
-<pre><code><span class="variable">line1 =</span> line_conf(<span class="number">1</span>, <span class="number">1</span>)
-<span class="variable">line2 =</span> line_conf(<span class="number">4</span>, <span class="number">5</span>)
-print(line1(<span class="number">5</span>), line2(<span class="number">5</span>))
-</code></pre><p>这个例子中，函数line与环境变量a,b构成闭包。在创建闭包的时候，我们通过line_conf的参数a,b说明了这两个环境变量的取值，这样，我们就确定了函数的最终形式(y = x + 1和y = 4x + 5)。我们只需要变换参数a,b，就可以获得不同的直线表达函数。由此，我们可以看到，闭包也具有提高代码可复用性的作用。<br>如果没有闭包，我们需要每次创建直线函数的时候同时说明a,b,x。这样，我们就需要更多的参数传递，也减少了代码的可移植性。利用闭包，我们实际上创建了泛函。line函数定义一种广泛意义的函数。这个函数的一些方面已经确定(必须是直线)，但另一些方面(比如a和b参数待定)。随后，我们根据line_conf传递来的参数，通过闭包的形式，将最终函数确定下来。</p>
-<h2 id="装饰器">装饰器</h2>
-<p>装饰器:<br>在函数调用前后自动打印日志，但又不希望修改now()函数的定义，这种在代码运行期间动态增加功能的方式，称之为“装饰器”（Decorator）。本质上，decorator就是一个返回函数的高阶函数。所以，我们要定义一个能打印日志的decorator.</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">makebold</span><span class="params">(fn)</span>:</span>    
-    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
-        <span class="keyword">return</span> <span class="string">"&lt;b&gt;"</span> + fn() + <span class="string">"&lt;/b&gt;"</span>    
-    <span class="keyword">return</span> wrapped
-<span class="function"><span class="keyword">def</span> <span class="title">makeitalic</span><span class="params">(fn)</span>:</span>     
-    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
-        <span class="keyword">return</span> <span class="string">"&lt;i&gt;"</span> + fn() + <span class="string">"&lt;/i&gt;"</span>    
-    <span class="keyword">return</span> wrapped
+		<h2 id="BSD_socket">BSD socket</h2>
+<p>The BSD socket is a framework to the different families of socket that Linux supports.<br>The BSD socket concept is very similar to the VFS (virtual file system) layer.<br>This way different protocol families are supported by Linux, and their services are accessable to the user using a common socket interface.</p>
+<h3 id="VFS">VFS</h3>
+<p>VFS is a framework that provides a common interface to various different file systems/pipe/devices/sockets to the user without user knowing how things are organized inside the kernel.</p>
+<p><img src="/img/Figure_3.1.png" alt="Figure_3.1" width="800" height="400"> </p>
 
-<span class="decorator">@makebold</span>
-<span class="decorator">@makeitalic</span>
-    <span class="function"><span class="keyword">def</span> <span class="title">hello</span><span class="params">()</span>:</span>     
-        <span class="keyword">return</span> <span class="string">"hello world"</span>
-<span class="keyword">print</span> hello()
-</code></pre><p>执行结果：</p>
-<blockquote>
-<p><b><i>hello world</i></b></p>
-</blockquote>
+
+<h2 id="socket()">socket()</h2>
+<p>用户调用socket函数时会调用内核层的sys_socket函数.sys_socket函数通过socket函数传递来的protocol,family<br>,type三个参数来创建对应的(TCP/UDP/RAW等)协议栈。</p>
+<p>socket(family, type, protocol)函数在内核中执行流程：</p>
+<p>socket()-&gt;sys_socketcall-&gt;sys_socket()-&gt;sock_create()-&gt;__sock_create()-&gt;net_families[?]-&gt;create()</p>
+<pre><code>asmlinkage <span class="keyword">long</span> sys_socket(<span class="keyword">int</span> family, <span class="keyword">int</span> type, <span class="keyword">int</span> protocol)
+{
+    <span class="keyword">int</span> retval;
+    <span class="keyword">struct</span> socket *sock;
+    <span class="comment">/*
+     * sock_create会调用__sock_create函数
+     * 若family为PF_INET,就会调用inet_create函数来初始化socket结构体
+     */</span>
+    retval = sock_create(family, type, protocol, &amp;sock);
+    <span class="keyword">if</span> (retval &lt; <span class="number">0</span>)
+        <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+    <span class="comment">/*
+     * 把struct socket sock放入到VFS中，返回fd-套接字
+     * 图Figure_3.2
+     */</span>
+    retval = sock_map_fd(sock);
+    <span class="keyword">if</span> (retval &lt; <span class="number">0</span>)
+        <span class="keyword">goto</span> out_release;
+}
+</code></pre><p><strong>net_families</strong>:保存所有不同类型的协议族的全局链表</p>
+<p>比如PF_INET协议族，inet_family_ops通过sock_regitser函数，把地址复制给net_families[PF_INET]</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">struct</span> net_proto_family inet_family_ops = {
+    .family = PF_INET,
+    .create = inet_create,
+    .owner    = THIS_MODULE,
+};
+
+
+<span class="keyword">int</span> sock_register(<span class="keyword">struct</span> net_proto_family *ops)
+{
+    <span class="keyword">if</span> (net_families[ops-&gt;family] == NULL) {
+        net_families[ops-&gt;family]=ops;
+        err = <span class="number">0</span>;
+    }
+}   
+</code></pre><p><strong>__sock_create函数</strong></p>
+<p>创建套接字时使用协议族参数作为偏移量，从net_families数组中获得协议族指针，进而调用该协议族的创建函数。</p>
+<p>若family为PF_INET,就会调用inet_create函数来初始化socket结构体</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">int</span> __sock_create(<span class="keyword">int</span> family, <span class="keyword">int</span> type, <span class="keyword">int</span> protocol, <span class="keyword">struct</span> socket **res, <span class="keyword">int</span> kern)
+{
+    <span class="comment">/* 若family等于PF_INET, net_families[PF_INET]-&gt;create指向inet_create函数 */</span>
+    <span class="keyword">if</span> ((err = net_families[family]-&gt;create(sock, protocol)) &lt; <span class="number">0</span>) {
+        sock-&gt;ops = <span class="literal">NULL</span>;
+        <span class="keyword">goto</span> out_module_put;
+    }
+
+}
+</code></pre><p>socket返回一个fd(file descirptor),fd通过VFS可以找到相对应的socket信息。</p>
+<p><img src="/img/Figure_3.2.png" alt="Figure_3.2" width="800" height="400"> </p>
+
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/Python/">Python</a>
+  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
 </div>
 
 
@@ -145,7 +161,7 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/20/python/2014-12-31-函数式编程/" data-title="Python--函数式编程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/21/tcp_ip_arch/2014-12-31-socket-layer/" data-title="TCP/IP--&gt;Socket--&gt;套接字创建流程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -155,18 +171,18 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/20/nginx/2015-01-04-nginx-init-signal/" title="Nginx--信号">
+ <a href="/2015/01/21/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册">
   <strong>上一篇：</strong><br/>
   <span>
-  Nginx--信号</span>
+  TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/20/nginx/2015-01-05-nginx-worker-handle-signal/"  title="Nginx--worker进程的信号处理">
+<a href="/2015/01/21/read/2015-01-16-read-you_should_write_blogs/"  title="阅读--you should write blogs">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--worker进程的信号处理
+ <span>阅读--you should write blogs
 </span>
 </a>
 </div>

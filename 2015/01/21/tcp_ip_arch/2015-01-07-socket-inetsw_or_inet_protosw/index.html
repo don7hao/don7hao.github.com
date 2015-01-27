@@ -4,20 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Nginx--进程间的消息传递 | don7hao&#39;s blog</title>
+    <title>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="进程间消息传递 nginx">
+    <meta name="description" itemprop="description" content="inetsw struct inet_protosw">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Nginx--进程间的消息传递 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" />
       
-        <meta name="twitter:description" content="进程间消息传递 nginx" />
+        <meta name="twitter:description" content="inetsw struct inet_protosw" />
       
     
     
@@ -64,13 +64,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T02:54:47.000Z" itemprop="datePublished">
-      <a href="/2015/01/20/nginx/2015-01-04-nginx-ipc/" title="Nginx--进程间的消息传递" itemprop="url" class="article-time">1月 20 2015</a>
+    <time datetime="2015-01-21T09:08:48.000Z" itemprop="datePublished">
+      <a href="/2015/01/21/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url" class="article-time">1月 21 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/20/nginx/2015-01-04-nginx-ipc/" title="Nginx--进程间的消息传递" itemprop="url"><span>Nginx--进程间的消息传递</span></a>
+      <a href="/2015/01/21/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
   </h1>
 </header>
 
@@ -80,141 +80,146 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#进程间的消息传递"><span class="toc-number">1.</span> <span class="toc-text">进程间的消息传递</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#N个worker子进程如何知道彼此信息的？"><span class="toc-number">2.</span> <span class="toc-text">N个worker子进程如何知道彼此信息的？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#父进程创建子进程"><span class="toc-number">2.1.</span> <span class="toc-text">父进程创建子进程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#传递新子进程信息给存活的子进程"><span class="toc-number">2.2.</span> <span class="toc-text">传递新子进程信息给存活的子进程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#存活的子进程接受消息"><span class="toc-number">2.3.</span> <span class="toc-text">存活的子进程接受消息</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw结构体"><span class="toc-number">1.</span> <span class="toc-text">inetsw结构体</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw_array结构体"><span class="toc-number">2.</span> <span class="toc-text">inetsw_array结构体</span></a></li></ol>
 		
 		</div>
 		
-		<h2 id="进程间的消息传递">进程间的消息传递</h2>
+		<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
 <blockquote>
-<p>nginx在多进程模型中主要使用socketpair机制来实现进程间的消息传递。<br>ngx_spawn_process函数中初始化socketpair</p>
+<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
 </blockquote>
-<pre><code>{
-    <span class="keyword">if</span> (<span class="keyword">socketpair</span>(AF_UNIX, SOCK_STREAM, <span class="number">0</span>, ngx_processes[<span class="keyword">s</span>].channel) == -<span class="number">1</span>)
-    {
-        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="keyword">log</span>, ngx_errno,
-                      <span class="string">"socketpair() failed while spawning \"<span class="variable">%s</span>\""</span>, name);
-        <span class="keyword">return</span> NGX_INVALID_PID;
-    }
-}
-</code></pre><h2 id="N个worker子进程如何知道彼此信息的？">N个worker子进程如何知道彼此信息的？</h2>
-<blockquote>
-<p>每个进程都维护着一张ngx_processes 是全局的进程表，用来保存存活的子进程信息。</p>
-<p>进程通过ngx_processes获取子进程pid和流管道句柄，实现进程间消息传递</p>
-</blockquote>
-<pre><code><span class="tag">ngx_process_t</span>    <span class="tag">ngx_processes</span><span class="attr_selector">[NGX_MAX_PROCESSES]</span>;
-</code></pre><blockquote>
-<p>ngx_process_t的结构体定义</p>
-</blockquote>
-<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
-    ngx_pid_t           pid;
-    <span class="comment">/* 进程的退出状态(主要在waitpid中进行处理) */</span>
-    <span class="keyword">int</span>                 status;
-    <span class="comment">/* 进程channel(也就是通过socketpair创建的两个句柄) */</span>
-    ngx_socket_t        channel[<span class="number">2</span>];
+<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
+<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
+<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
+<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
+<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
+<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
+<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
+<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+};
 
-    <span class="comment">/* 进程的执行函数（也就是每次spawn，子进程所要执行的那个函数). */</span>
-    ngx_spawn_proc_pt   proc;
-    <span class="keyword">void</span>               *data;
-    <span class="keyword">char</span>               *name;
+#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
 
-    <span class="comment">/* 进程的几个状态 */</span>
-    <span class="keyword">unsigned</span>            respawn:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            just_spawn:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            detached:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            exiting:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            exited:<span class="number">1</span>;
-} ngx_process_t;
-</code></pre><h3 id="父进程创建子进程">父进程创建子进程</h3>
-<blockquote>
-<p>父进程调用ngx_start_work_processes函数中，并循环调用ngx_spawn_process函数生成N个worker的子进程,更新ngx_processes进程表</p>
-</blockquote>
-<pre><code><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) {
-    ngx_spawn_process(cycle, ngx_worker_process_cycle, 
-            (<span class="keyword">void</span> *) (intptr_t) i, <span class="string">"worker process"</span>, <span class="class"><span class="keyword">type</span>);</span>
-}
+static struct list_head inetsw[SOCK_MAX];
 </code></pre><blockquote>
-<p>父进程每调用一次ngx_spawn_process函数后，将新fork的子进程pid和流管道的句柄channel[0]复制给ch变量(ngx_channel_t)，</p>
-<p>然后调用ngx_pass_open_channel函数把ch消息传递给之前创建的子进程。</p>
+<p>inetsw在inet_init函数中初始化</p>
 </blockquote>
-<pre><code>{
-    <span class="number">ch</span>.command = NGX_CMD_OPEN_CHANNEL<span class="comment">;</span>
-    <span class="number">ch</span>.pid = ngx_processes[ngx_process_slot]<span class="string">.pid</span><span class="comment">;</span>
-    <span class="number">ch</span>.slot = ngx_process_slot<span class="comment">;</span>
-    <span class="number">ch</span>.fd = ngx_processes[ngx_process_slot]<span class="string">.channel</span>[<span class="number">0</span>]<span class="comment">;</span>
-
-    ngx_pass_open_channel(cycle, &amp;<span class="number">ch</span>)<span class="comment">;</span>
-}
-</code></pre><h3 id="传递新子进程信息给存活的子进程">传递新子进程信息给存活的子进程</h3>
+<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
+<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
+    INIT_LIST_HEAD(r);
+</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
 <blockquote>
-<p>进程间消息格式定义ngx_channel_t结构体，其定义</p>
+<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
 </blockquote>
-<pre><code>typedef struct {
-    /<span class="keyword">*</span> 对端将接受到的命令 <span class="keyword">*</span>/
-     ngx_uint_t  command;
-     /<span class="keyword">*</span> 进程id <span class="keyword">*</span>/
-     ngx_pid_t   pid;
-     /<span class="keyword">*</span> 在全局ngx_processess数组中的位置 <span class="keyword">*</span>/
-     ngx_int_t   slot;
-     /<span class="keyword">*</span> 传递的fd <span class="keyword">*</span>/
-     ngx_fd_t    fd;
-} ngx_channel_t;
-</code></pre><blockquote>
-<p>父进程调用ngx_pass_open_channel函数遍历ngx_processes进程表找到存活的子进程们并发送消息(ngx_channel_t)给他们</p>
-</blockquote>
-<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
-ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
+<pre><code>static struct inet_protosw inetsw_array[] =
 {
-    ngx_int_t  i;
-
-    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ngx_last_process; i++) {
-
-        <span class="keyword">if</span> (i == ngx_process_slot
-            || ngx_processes[i].pid == -<span class="number">1</span>
-            || ngx_processes[i].channel[<span class="number">0</span>] == -<span class="number">1</span>)
         {
-            <span class="keyword">continue</span>;
-        }
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="comment">/* TODO: NGX_AGAIN */</span>
-        <span class="comment">/* 把ch的信息发给前面的子进程们 */</span>
-        ngx_write_channel(ngx_processes[i].channel[<span class="number">0</span>],
-                          ch, <span class="keyword">sizeof</span>(ngx_channel_t), cycle-&gt;<span class="built_in">log</span>);
-    }
-}
-</code></pre><h3 id="存活的子进程接受消息">存活的子进程接受消息</h3>
-<blockquote>
-<p>存活的子进程调用ngx_channel_handle函数（管道可读事件捕捉函数），读取消息并解析成ngx_channel_t，并根据command做相应的处理.</p>
-<p>在ngx_start_work_processes函数中已知ch.command = NGX_CMD_OPEN_CHANNEL;</p>
-<p>存活的子进程收到信息更新自己的ngx_processes进程表，子进程就得到新创建的子进程的信息，子进程间就可以通信。</p>
+                .<span class="variable">type =</span>       SOCK_STREAM,
+                .<span class="variable">protocol =</span>   IPPROTO_TCP,
+                .<span class="variable">prot =</span>       &amp;tcp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   <span class="number">0</span>,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+                  INET_PROTOSW_ICSK,
+        },
+
+        {
+                .<span class="variable">type =</span>       SOCK_DGRAM,
+                .<span class="variable">protocol =</span>   IPPROTO_UDP,
+                .<span class="variable">prot =</span>       &amp;udp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
+       },
+
+
+       {
+               .<span class="variable">type =</span>       SOCK_RAW,
+               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
+               .<span class="variable">prot =</span>       &amp;raw_prot,
+               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
+               .<span class="variable">capability =</span> CAP_NET_RAW,
+               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
+       }
+};
+</code></pre><blockquote>
+<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
 </blockquote>
-<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
-ngx_channel_handler(ngx_event_t *ev)
+<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
+    inet_register_protosw(q);
+</code></pre><blockquote>
+<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
+</blockquote>
+<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+
+<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
 {
-    ngx_int_t          n;
-    ngx_channel_t      ch;
-    ngx_connection_t  *c;
+    <span class="keyword">struct</span> list_head *lh;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">int</span> protocol = p-&gt;protocol;
+    <span class="keyword">struct</span> list_head *last_perm;
 
-    <span class="comment">/* 去掉部分代码 */</span>
-    <span class="keyword">for</span> ( ;; ) {
-        n = ngx_read_channel(c-&gt;fd, &amp;ch, <span class="keyword">sizeof</span>(ngx_channel_t), ev-&gt;<span class="built_in">log</span>);
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="keyword">switch</span> (ch.command) {
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="keyword">case</span> NGX_CMD_OPEN_CHANNEL:
-         <span class="comment">/* 进程更新自己的ngx_processes进程表，记录其他子进程的相关信息 */</span>
-            ngx_processes[ch.slot].pid = ch.pid;
-            ngx_processes[ch.slot].channel[<span class="number">0</span>] = ch.fd;
-            <span class="keyword">break</span>;
-        <span class="keyword">case</span> NGX_CMD_CLOSE_CHANNEL:
+    spin_lock_bh(&amp;inetsw_lock);
 
-            <span class="keyword">if</span> (close(ngx_processes[ch.slot].channel[<span class="number">0</span>]) == -<span class="number">1</span>) {
-                ngx_log_error(NGX_LOG_ALERT, ev-&gt;<span class="built_in">log</span>, ngx_errno,
-                              <span class="string">"close() channel failed"</span>);
-            }
-            ngx_processes[ch.slot].channel[<span class="number">0</span>] = -<span class="number">1</span>;
-            <span class="keyword">break</span>;
+    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
+        <span class="keyword">goto</span> out_illegal;
+
+    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
+    answer = <span class="literal">NULL</span>;
+    last_perm = &amp;inetsw[p-&gt;type];
+    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+
+        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
+         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
+         * 得到inet_protosw的地址
+         */</span>
+        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+
+        <span class="comment">/* Check only the non-wild match. */</span>
+        <span class="comment">/* 检查是否有已经注册过的socket type
+         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
+         * 且protocol相等，不能覆盖已有的socket类型.
+         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
+         */</span>
+        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
+            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+                <span class="keyword">break</span>;
+            last_perm = lh;
         }
+
+        answer = <span class="literal">NULL</span>;
     }
+    <span class="keyword">if</span> (answer)
+        <span class="keyword">goto</span> out_permanent;
+
+    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
+     * the new entry does not override a permanent entry when matched with
+     * a wild-card protocol. But it is allowed to override any existing
+     * non-permanent entry.  This means that when we remove this entry, the 
+     * system automatically returns to the old behavior.
+     * 挂链操作
+     */</span>
+    list_add_rcu(&amp;p-&gt;list, last_perm);
+<span class="keyword">out</span>:
+    spin_unlock_bh(&amp;inetsw_lock);
+
+    synchronize_net();
+
+    <span class="keyword">return</span>;
+
+out_permanent:
+    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
+           protocol);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+out_illegal:
+    printk(KERN_ERR
+           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
+           p-&gt;type);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
 }
 </code></pre>  
 	</div>
@@ -222,7 +227,7 @@ ngx_channel_handler(ngx_event_t *ev)
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/Nginx/">Nginx</a>
+  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
 </div>
 
 
@@ -231,7 +236,7 @@ ngx_channel_handler(ngx_event_t *ev)
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/20/nginx/2015-01-04-nginx-ipc/" data-title="Nginx--进程间的消息传递 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/21/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" data-title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -241,18 +246,18 @@ ngx_channel_handler(ngx_event_t *ev)
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/20/libeio/2015-01-12-libeio_data/" title="Libeio--libeio初始化，REQ/RES队列，锁，线程">
+ <a href="/2015/01/22/python/2014-12-31-协程/" title="Python--协程">
   <strong>上一篇：</strong><br/>
   <span>
-  Libeio--libeio初始化，REQ/RES队列，锁，线程</span>
+  Python--协程</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/20/nginx/2015-01-04-nginx-fioasync/"  title="Nginx--FIOASYNC">
+<a href="/2015/01/21/tcp_ip_arch/2014-12-31-socket-layer/"  title="TCP/IP--&gt;Socket--&gt;套接字创建流程">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--FIOASYNC
+ <span>TCP/IP--&gt;Socket--&gt;套接字创建流程
 </span>
 </a>
 </div>
