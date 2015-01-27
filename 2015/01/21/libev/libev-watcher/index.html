@@ -4,23 +4,23 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>libev-watcher | don7hao&#39;s blog</title>
+    <title>libev-signal watcher | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="watcher
-watcher代表你告诉libev你关心的事件，比如io, timer, signal等。
-watcher的配置
-evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_start()
-测试用例:我创建一个信号事件，当接收到SIGINT信号时回调signal_do函数。
-">
+    <meta name="description" content="signal watcher
+signal watcher是需要io watcher来完成的。
+
+signalwatcher通过evpipe_init来创建管道和iowatcher(管道的fd赋值给io watcher)，当收到某信号后ev_sighandler会调用并会往管道写数据。
+
+主循环体通">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="libev-watcher | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="libev-signal watcher | don7hao&#39;s blog" />
       
     
     
@@ -68,12 +68,12 @@ evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_start()
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
     <time datetime="2015-01-21T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/21/libev/libev-watcher/" title="libev-watcher" itemprop="url" class="article-time">1月 21 2015</a>
+      <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher" itemprop="url" class="article-time">1月 21 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/21/libev/libev-watcher/" title="libev-watcher" itemprop="url"><span>libev-watcher</span></a>
+      <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher" itemprop="url"><span>libev-signal watcher</span></a>
   </h1>
 </header>
 
@@ -83,13 +83,21 @@ evinit(事件)—&amp;gt;ev事件set()—&amp;gt;ev事件_start()
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#watcher"><span class="toc-number">1.</span> <span class="toc-text">watcher</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher的配置"><span class="toc-number">1.1.</span> <span class="toc-text">watcher的配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher通用接口"><span class="toc-number">1.2.</span> <span class="toc-text">watcher通用接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher_代码分析:"><span class="toc-number">1.3.</span> <span class="toc-text">watcher 代码分析:</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#struct_ev_signal结构体"><span class="toc-number">1.3.1.</span> <span class="toc-text">struct ev_signal结构体</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signals全局变量"><span class="toc-number">1.3.2.</span> <span class="toc-text">signals全局变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher初始化"><span class="toc-number">1.3.3.</span> <span class="toc-text">signal watcher初始化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher配置信号"><span class="toc-number">1.3.4.</span> <span class="toc-text">signal watcher配置信号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher启动"><span class="toc-number">1.3.5.</span> <span class="toc-text">signal watcher启动</span></a></li></ol></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#signal_watcher"><span class="toc-number">1.</span> <span class="toc-text">signal watcher</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#signal_watcher的配置"><span class="toc-number">1.1.</span> <span class="toc-text">signal watcher的配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher通用接口"><span class="toc-number">1.2.</span> <span class="toc-text">watcher通用接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#watcher_代码分析:"><span class="toc-number">1.3.</span> <span class="toc-text">watcher 代码分析:</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#struct_ev_signal结构体"><span class="toc-number">1.3.1.</span> <span class="toc-text">struct ev_signal结构体</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signals全局变量"><span class="toc-number">1.3.2.</span> <span class="toc-text">signals全局变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher初始化"><span class="toc-number">1.3.3.</span> <span class="toc-text">signal watcher初始化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher配置信号"><span class="toc-number">1.3.4.</span> <span class="toc-text">signal watcher配置信号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#signal_watcher启动"><span class="toc-number">1.3.5.</span> <span class="toc-text">signal watcher启动</span></a></li></ol></li></ol></li></ol>
 		
 		</div>
 		
-		<h1 id="watcher">watcher</h1>
-<p>watcher代表你告诉libev你关心的事件，比如io, timer, signal等。</p>
-<h2 id="watcher的配置">watcher的配置</h2>
+		<h1 id="signal_watcher">signal watcher</h1>
+<p>signal watcher是需要io watcher来完成的。</p>
+<ol>
+<li><p>signalwatcher通过evpipe_init来创建管道和iowatcher(管道的fd赋值给io watcher)，当收到某信号后ev_sighandler会调用并会往管道写数据。</p>
+</li>
+<li><p>主循环体通过backend_poll检测管道的fd可读/写时就会把对应的io watcher放到loop-&gt;pending上。</p>
+</li>
+<li><p>主循环体调用ev_invoke_pending就会检测pending上就绪的io<br>watcher并调用该watcher的回调函数pipecb(pipecb函数就会读取管道数据，并把signal watcher放到loop-&gt;pengding上)，然后ev_invoke_pending检测到signal　watcher被激活，调用它的回调函数signal_do。</p>
+</li>
+</ol>
+<h2 id="signal_watcher的配置">signal watcher的配置</h2>
 <p>ev<em>init(事件)—&gt;ev</em>事件<em>set()—&gt;ev</em>事件_start()</p>
 <p>测试用例:我创建一个信号事件，当接收到SIGINT信号时回调signal_do函数。</p>
 <pre><code>ev_singal signal_e;
@@ -231,14 +239,18 @@ ev_signal_start (<span class="keyword">struct</span> ev_loop *<span class="keywo
         <span class="keyword">if</span> (<span class="keyword">loop</span>-&gt;sigfd &lt; <span class="number">0</span>) <span class="comment">/*TODO*/</span>
         {
             <span class="keyword">struct</span> sigaction sa;
-</code></pre><p>ev_pipe_init初始化管道(loop-&gt;evpipe[2]),通过管道与主进程进行通信</p>
+</code></pre><p>ev_pipe_init:</p>
+<p>1.建立管道(loop-&gt;evpipe), 把管道信息赋值给一个io<br>    watcher(loop-&gt;pipe_w)。</p>
 <pre><code>            evpipe_init (<span class="keyword">loop</span>);
 </code></pre><p>ev_sighandler的作用当接受SIGINT信号时，调用evpipe_write函数触发以下事件：</p>
 <ol>
-<li><p>watcher设置为就绪状态</p>
+<li><p>watcher设置为就绪状态（loop-&gt;sig_pending设置为１)。</p>
 </li>
-<li><p>通过管道告知主进程有事件，主进程读到就会把watcher挂到loop-&gt;pendings</p>
-<pre><code>         sa.s<span class="built_in">a_handler</span> = ev_sighandler<span class="comment">;</span>
+<li><p>往管道写信息(主循环体会调用io</p>
+<pre><code> watcher(<span class="keyword">loop</span>-&gt;pipe_w)回调函数pipecb来读取管道信息，若signal
+ watcher已激活(sig_pending等于１)，主循环下一步就会调用测试代码的注册回调函数signal_do)。
+
+         sa.s<span class="built_in">a_handler</span> = ev_sighandler<span class="comment">;</span>
          sigfillset (&amp;sa.s<span class="built_in">a_mask</span>)<span class="comment">;</span>
          /* <span class="keyword">if</span> restarting works we save one iteration */
          sa.s<span class="built_in">a_flags</span> = S<span class="built_in">A_RESTART</span><span class="comment">;</span>
@@ -271,7 +283,7 @@ ev_signal_start (<span class="keyword">struct</span> ev_loop *<span class="keywo
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/21/libev/libev-watcher/" data-title="libev-watcher | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/21/libev/libev-watcher/" data-title="libev-signal watcher | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -281,7 +293,7 @@ ev_signal_start (<span class="keyword">struct</span> ev_loop *<span class="keywo
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/21/nginx/2015-01-05-nginx-worker-handle-signal/" title="Nginx--worker进程的信号处理">
+ <a href="/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/" title="Nginx--worker进程的信号处理">
   <strong>上一篇：</strong><br/>
   <span>
   Nginx--worker进程的信号处理</span>

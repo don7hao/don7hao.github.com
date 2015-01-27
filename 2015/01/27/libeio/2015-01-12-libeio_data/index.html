@@ -1,0 +1,644 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>Libeio--libeio初始化，REQ/RES队列，锁，线程 | don7hao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="don7hao">
+    
+    <meta name="description" itemprop="description" content="libeio asynchronous">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="don6hao" />
+    <meta name="twitter:title" content="Libeio--libeio初始化，REQ/RES队列，锁，线程 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="libeio asynchronous" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="don7hao&#39;s blog">don7hao&#39;s blog</a></h1>
+				<h2 class="blog-motto"><a href="/">Write it step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/categories">目录</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li><form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:don7hao.github.com">
+					</form></li>
+				</ul>
+			</nav>
+</div>
+    </header>
+    <div id="wrap">
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
+      <a href="/2015/01/27/libeio/2015-01-12-libeio_data/" title="Libeio--libeio初始化，REQ/RES队列，锁，线程" itemprop="url" class="article-time">1月 27 2015</a>
+    </time>
+
+  <h1 itemprop="name" class="article-name">
+    
+      <a href="/2015/01/27/libeio/2015-01-12-libeio_data/" title="Libeio--libeio初始化，REQ/RES队列，锁，线程" itemprop="url"><span>Libeio--libeio初始化，REQ/RES队列，锁，线程</span></a>
+  </h1>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#libeio数据"><span class="toc-number">1.</span> <span class="toc-text">libeio数据</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#libeio_初始化"><span class="toc-number">2.</span> <span class="toc-text">libeio 初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#REQ队列和RES队列"><span class="toc-number">3.</span> <span class="toc-text">REQ队列和RES队列</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#libeio中的锁"><span class="toc-number">4.</span> <span class="toc-text">libeio中的锁</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#work线程"><span class="toc-number">5.</span> <span class="toc-text">work线程</span></a></li></ol>
+		
+		</div>
+		
+		<h2 id="libeio数据">libeio数据</h2>
+<p>libeio使用的数据主要包括多线程（主线程和worker线程），锁(互斥锁和条件锁），队列（req_queue和res_queue)。</p>
+<h2 id="libeio_初始化">libeio 初始化</h2>
+<pre><code><span class="keyword">int</span> eio_init (<span class="keyword">void</span> (*want_poll)(<span class="keyword">void</span>), <span class="keyword">void</span> (*done_poll)(<span class="keyword">void</span>))
+</code></pre><p>eio_init函数：初始化libeio库。成功返回0，失败返回-1并且设置合适的errno值。</p>
+<ol>
+<li>初始化libeio中的一些全局结构，比如：req_queue，res_queue，以及各种互斥量等。</li>
+<li><p>保存外界传入的两个回调函数：want_poll和done_poll。这两个函数都是边缘触发函数</p>
+<p> etp_init (void (<em>want_poll)(void), void (</em>done_poll)(void))<br> {</p>
+<pre><code> //初始化三个互斥量wrklock, reslock, reqlock和一个条件变量reqwait
+
+ X_MUTEX_CREATE (wrklock);
+ X_MUTEX_CREATE (reslock);
+ X_MUTEX_CREATE (reqlock);
+ X_COND_CREATE  (reqwait);
+
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span>初始化两个队列：
+  <span class="keyword">*</span> 1.eio_submit把request放入req_queue
+  <span class="keyword">*</span> 2.eio_poll从res_queue中取出数据
+  <span class="keyword">*</span>/
+
+ reqq_init (&amp;req_queue);
+ reqq_init (&amp;res_queue);
+
+ //work线程链表
+
+ wrk_first.next =
+ wrk_first.prev = &amp;wrk_first;
+
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span>  number of worker threads currently running.
+  <span class="keyword">*</span>/
+ started  = 0; 
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> 表示处于COND_WAIT状态下的空闲线程数
+  <span class="keyword">*</span>/
+ idle     = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> nreqs: number of requests currently handled by libeio. 
+  <span class="keyword">*</span> This is the total number of requests that have been submitted to libeio, but not yet destroyed.
+  <span class="keyword">*</span>/
+ nreqs    = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> nready : number of ready requests, 
+  <span class="keyword">*</span> i.e. requests that have been submitted but have not yet entered the execution phase.
+  <span class="keyword">*</span>/
+ nready   = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> npending : number of pending requests, 
+  <span class="keyword">*</span> i.e. requests that have been executed and have results, 
+  <span class="keyword">*</span> but have not been finished yet by a call to eio_poll)
+  <span class="keyword">*</span>/
+ npending = 0;
+
+ //设置回调函数
+
+ want_poll_cb = want_poll;
+ done_poll_cb = done_poll;
+
+ return 0;
+</code></pre><p> }</p>
+</li>
+</ol>
+<h2 id="REQ队列和RES队列">REQ队列和RES队列</h2>
+<p>etb_reqq结构体</p>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> eio_req    eio_req;
+<span class="preprocessor">#<span class="keyword">define</span> ETP_REQ eio_req</span>
+
+<span class="comment">/*
+* a somewhat faster data structure might be nice, but
+* with 8 priorities this actually needs &lt;20 insns
+* per shift, the most expensive operation.
+*/</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    ETP_REQ *qs[ETP_NUM_PRI], *qe[ETP_NUM_PRI]; <span class="comment">/* qstart, qend */</span>
+    <span class="keyword">int</span> size;
+} etp_reqq;
+</code></pre><p>定义两个etp_reqq全局变量</p>
+<pre><code><span class="keyword">static</span> etp_reqq req_queue;
+<span class="keyword">static</span> etp_reqq res_queue;
+</code></pre><p>初始化队列</p>
+<pre><code><span class="keyword">static</span> void ecb_noinline ecb_cold
+reqq_init (etp_reqq *q)
+{
+    <span class="keyword">int</span> pri;
+
+    <span class="comment">/*
+     * etp_reqq包含ETP_NUM_PRT个指向ETP_REQ的指针数组
+     * 每个数组成员的头指针和尾指针指向0 
+     */</span>
+    <span class="keyword">for</span> (pri = <span class="number">0</span>; pri &lt; ETP_NUM_PRI; ++pri)
+        q-&gt;qs[pri] = q-&gt;qe[pri] = <span class="number">0</span>;
+
+    q-&gt;size = <span class="number">0</span>;
+}
+</code></pre><p>把request放入到队列中</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">int</span> ecb_noinline
+reqq_push (etp_reqq *q, ETP_REQ *req)
+{
+    <span class="keyword">int</span> pri = req-&gt;pri;
+    req-&gt;next = <span class="number">0</span>;
+
+    <span class="comment">/*
+     * 若qe[pri]已有数据则该更新队列的尾指针指向该request
+     * 若无数据则队列头指针和尾指针都指向该request
+     */</span>
+    <span class="keyword">if</span> (q-&gt;qe[pri])
+    {
+        q-&gt;qe[pri]-&gt;next = req;
+        q-&gt;qe[pri] = req;
+    }
+    <span class="keyword">else</span>
+        q-&gt;qe[pri] = q-&gt;qs[pri] = req;
+
+    <span class="keyword">return</span> q-&gt;size++;
+}
+</code></pre><p>把request从队列中取出</p>
+<pre><code><span class="keyword">static</span> ETP_REQ * ecb_noinline
+reqq_shift (etp_reqq *q)
+{
+    <span class="keyword">int</span> pri;
+
+    <span class="keyword">if</span> (!q-&gt;size)
+        <span class="keyword">return</span> <span class="number">0</span>;
+
+    --q-&gt;size;
+
+    <span class="keyword">for</span> (pri = ETP_NUM_PRI; pri--; )
+    {
+        ETP_REQ *req = q-&gt;qs[pri];
+
+        <span class="keyword">if</span> (req)
+        {
+            <span class="comment">/* 队列数据取完，头和尾指针指向0 */</span>
+            <span class="keyword">if</span> (!(q-&gt;qs[pri] = (ETP_REQ *)req-&gt;next))
+                q-&gt;qe[pri] = <span class="number">0</span>;
+
+            <span class="keyword">return</span> req;
+        }
+    }
+
+    <span class="comment">/* 无数据可取，异常退出 */</span>
+    abort ();
+}
+</code></pre><h2 id="libeio中的锁">libeio中的锁</h2>
+<pre><code><span class="preprocessor">#<span class="keyword">include</span> &lt;pthread.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigset_t int</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigfillset(a)</span>
+<span class="preprocessor">#<span class="keyword">define</span> pthread_sigmask(a,b,c)</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigaddset(a,b)</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigemptyset(s)</span>
+
+<span class="keyword">typedef</span> pthread_mutex_t xmutex_t;
+<span class="preprocessor">#<span class="keyword">define</span> X_MUTEX_INIT           PTHREAD_MUTEX_INITIALIZER</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_MUTEX_CREATE(mutex)  pthread_mutex_init (&amp;(mutex), 0)</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_LOCK(mutex)          pthread_mutex_lock (&amp;(mutex))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_UNLOCK(mutex)        pthread_mutex_unlock (&amp;(mutex))</span>
+
+<span class="keyword">typedef</span> pthread_cond_t xcond_t;
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_INIT                     PTHREAD_COND_INITIALIZER</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_CREATE(cond)        pthread_cond_init (&amp;(cond), 0)</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_SIGNAL(cond)             pthread_cond_signal (&amp;(cond))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_WAIT(cond,mutex)         pthread_cond_wait (&amp;(cond), &amp;(mutex))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_TIMEDWAIT(cond,mutex,to) pthread_cond_timedwait (&amp;(cond), &amp;(mutex), &amp;(to))</span>
+</code></pre><p>在eio_submit中的部分代码：<br>1.reqlock加锁进行数据更新和reqq_push操作然后reqlock解锁<br>2.发送条件锁的信号给worker线程</p>
+<pre><code><span class="comment">X_LOCK</span> <span class="comment">(reqlock);</span>
+<span class="literal">+</span><span class="literal">+</span><span class="comment">nreqs;</span>
+<span class="literal">+</span><span class="literal">+</span><span class="comment">nready;</span>
+<span class="comment">reqq_push</span> <span class="comment">(&amp;req_queue</span><span class="string">,</span> <span class="comment">req);</span>
+<span class="comment">X_COND_SIGNAL</span> <span class="comment">(reqwait);</span>
+<span class="comment">X_UNLOCK</span> <span class="comment">(reqlock);</span>
+</code></pre><p>etp_poll中的部分代码：<br>1.reqlock加锁进行数据更新和reqq_shift操作然后reqlock解锁</p>
+<pre><code>X_LOCK (reslock);
+req = reqq_shift (&amp;res_queue);
+<span class="keyword">if</span> (req)
+{
+    --npending;
+    <span class="keyword">if</span> (!res_queue.size &amp;&amp; <span class="keyword">done</span>_poll_cb)
+    <span class="keyword">done</span>_poll_cb ();
+}
+X_UNLOCK (reslock);
+</code></pre><p>worker线程中使用X_COND_WAIT或X_COND_TIMEDWAIT来接受条件锁信号</p>
+<pre><code><span class="keyword">if</span> (idle &lt;= max_idle)
+    <span class="comment">/* we are allowed to idle, so do so without any timeout */</span>
+    X_COND_WAIT (reqwait, reqlock);
+<span class="keyword">else</span>
+{
+    <span class="comment">/* initialise timeout once */</span>
+    <span class="keyword">if</span> (!ts.tv_sec)
+    ts.<span class="variable">tv_sec =</span> time (<span class="number">0</span>) + idle_timeout;
+
+    <span class="keyword">if</span> (X_COND_TIMEDWAIT (reqwait, reqlock, ts) == ETIMEDOUT)
+        ts.<span class="variable">tv_sec =</span> <span class="number">1</span>; <span class="comment">/* assuming this is not a value computed above.,.. */</span>
+}
+</code></pre><h2 id="work线程">work线程</h2>
+<p>线程初始化：</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+etp_maybe_start_thread (<span class="keyword">void</span>)
+{
+    <span class="keyword">if</span> (ecb_expect_true (etp_nthreads () &gt;= wanted))
+        <span class="keyword">return</span>;
+
+    <span class="comment">/* todo: maybe use idle here, but might be less exact */</span>
+    <span class="keyword">if</span> (ecb_expect_true (<span class="number">0</span> &lt;= (<span class="keyword">int</span>)etp_nthreads () + (<span class="keyword">int</span>)etp_npending () - (<span class="keyword">int</span>)etp_nreqs ()))
+        <span class="keyword">return</span>;
+
+    etp_start_thread ();
+}
+</code></pre><p>通过calloc分配work线程资源并挂在wrk_first双向链表上</p>
+<pre><code><span class="keyword">static</span> etp_worker wrk_first; <span class="comment">/* NOT etp */</span>
+
+<span class="keyword">static</span> <span class="keyword">void</span> ecb_cold
+etp_start_thread (<span class="keyword">void</span>)
+{
+    etp_worker *wrk = calloc (<span class="number">1</span>, sizeof (etp_worker));
+
+    <span class="comment">/*TODO*/</span>
+    assert ((<span class="string">"unable to allocate worker thread data"</span>, wrk));
+
+    X_LOCK (wrklock);
+
+    <span class="keyword">if</span> (xthread_create (&amp;wrk-&gt;tid, etp_proc, (<span class="keyword">void</span> *)wrk))
+    {
+        wrk-&gt;prev = &amp;wrk_first;
+        wrk-&gt;<span class="keyword">next</span> = wrk_first.<span class="keyword">next</span>;
+        wrk_first.<span class="keyword">next</span>-&gt;prev = wrk;
+        wrk_first.<span class="keyword">next</span> = wrk;
+        ++started;
+    }
+    <span class="keyword">else</span>
+        free (wrk);
+
+    X_UNLOCK (wrklock);
+}
+</code></pre><p>创建属性detached(不用考虑线程资源的回收)的线程</p>
+<pre><code><span class="keyword">static</span> <span class="type">int</span>
+xthread_create (xthread_t *tid, <span class="type">void</span> *(*<span class="keyword">proc</span>)(<span class="type">void</span> *), <span class="type">void</span> *arg)
+{
+    <span class="type">int</span> retval;
+    pthread_attr_t attr;
+
+    pthread_attr_init (&amp;attr);
+    pthread_attr_setdetachstate (&amp;attr, <span class="type">PTHREAD_CREATE_DETACHED</span>);
+
+    retval = pthread_create (tid, &amp;attr, <span class="keyword">proc</span>, arg) == <span class="number">0</span>;
+
+    pthread_attr_destroy (&amp;attr);
+
+    <span class="keyword">return</span> retval;
+}
+</code></pre><p>从链表上移除</p>
+<pre><code>static void ecb_cold
+etp_worker_free (etp_worker *wrk)
+{
+    free (wrk-&gt;tmpbuf.ptr);
+
+    wrk-&gt;<span class="keyword">next</span>-&gt;prev = wrk-&gt;prev;
+    wrk-&gt;prev-&gt;<span class="keyword">next</span> = wrk-&gt;<span class="keyword">next</span>;
+
+    free (wrk);
+}
+</code></pre>  
+	</div>
+		<footer class="article-footer clearfix">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/Libeio/">Libeio</a>
+</div>
+
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://don7hao.github.com/2015/01/27/libeio/2015-01-12-libeio_data/" data-title="Libeio--libeio初始化，REQ/RES队列，锁，线程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/01/27/nginx/2015-01-04-nginx-init-signal/" title="Nginx--信号">
+  <strong>上一篇：</strong><br/>
+  <span>
+  Nginx--信号</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/01/27/nginx/2015-01-05-nginx-master-handle-signal/"  title="Nginx--master进程的信号处理">
+ <strong>下一篇：</strong><br/> 
+ <span>Nginx--master进程的信号处理
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread"></div>
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/Libeio/" title="Libeio">Libeio<sup>2</sup></a></li>
+		
+			<li><a href="/categories/Nginx/" title="Nginx">Nginx<sup>5</sup></a></li>
+		
+			<li><a href="/categories/Python/" title="Python">Python<sup>2</sup></a></li>
+		
+			<li><a href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/" title="TCP_IP.Architecture.Design.and.Implementation.in.Linux">TCP_IP.Architecture.Design.and.Implementation.in.Linux<sup>3</sup></a></li>
+		
+			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
+		
+			<li><a href="/categories/programming/" title="programming">programming<sup>1</sup></a></li>
+		
+			<li><a href="/categories/read/" title="read">read<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+      <li><a href="http://yangjian.me" target="_blank" title="YangJian">Alimon's Blog</a></li>
+      <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
+    </ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="null" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+</div>
+    <footer><div id="footer" >
+	
+    <div class="social-font" class="clearfix">
+        
+        
+        <a href="https://github.com/don7hao" target="_blank" class="icon-github" title="github"></a>
+        
+        
+        
+        <a href="https://twitter.com/don6hao" target="_blank" class="icon-twitter" title="twitter"></a>
+        
+        
+        
+        
+        <a href="mailto:don7hao@gmail.com" target="_blank" class="icon-email" title="Email Me"></a>
+        
+    </div>
+	<section class="info">
+		<p class="l1">
+            This is don7hao&#39;s personal blog.
+        </p>
+            <!-- <br/> -->
+        <p class="l2">
+			好记性不如烂笔头
+        </p>
+	</section>
+	 
+		<p class="copyright">Powered by <a href="http://zespia.tw/hexo/" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/RagingCat/hexo-theme-ragingcat" target="_blank" title="hexo-theme-ragingcat">Raging Cat</a> © 2015
+		
+		<a href="http://don7hao.github.com/about" target="_blank" title="don7hao">don7hao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize();
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"don7hao"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0]
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+});
+</script>
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'null', 'don7hao.info');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+  </body>
+</html>

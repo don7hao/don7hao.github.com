@@ -4,27 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>异步非阻塞和同步非阻塞 | don7hao&#39;s blog</title>
+    <title>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="异步非阻塞和同步非阻塞
-美食广场有餐馆A和餐馆B
-
-餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。
-
-餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。
-
-
-异步非阻塞
-异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等">
+    <meta name="description" itemprop="description" content="inetsw struct inet_protosw">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="inetsw struct inet_protosw" />
       
     
     
@@ -71,13 +64,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url" class="article-time">1月 20 2015</a>
+    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
+      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url" class="article-time">1月 27 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url"><span>异步非阻塞和同步非阻塞</span></a>
+      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
   </h1>
 </header>
 
@@ -87,30 +80,154 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#异步非阻塞和同步非阻塞"><span class="toc-number">1.</span> <span class="toc-text">异步非阻塞和同步非阻塞</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#异步非阻塞"><span class="toc-number">1.1.</span> <span class="toc-text">异步非阻塞</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#同步非阻塞"><span class="toc-number">1.2.</span> <span class="toc-text">同步非阻塞</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw结构体"><span class="toc-number">1.</span> <span class="toc-text">inetsw结构体</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw_array结构体"><span class="toc-number">2.</span> <span class="toc-text">inetsw_array结构体</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="异步非阻塞和同步非阻塞">异步非阻塞和同步非阻塞</h1>
-<p>美食广场有餐馆A和餐馆B</p>
-<ol>
-<li><p>餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。</p>
-</li>
-<li><p>餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。</p>
-</li>
-</ol>
-<h2 id="异步非阻塞">异步非阻塞</h2>
-<p>异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等餐准备好了通知器就会震动通知你。</p>
-<h2 id="同步非阻塞">同步非阻塞</h2>
-<p>同步阻塞就像你去餐馆B消费，刷完卡带完餐后你就去干其他的事情，过段时间跑到餐馆B询问餐是否准备完毕。</p>
-<p>阅读<br><a href="http://liuxun.org/blog/reactor-he-proactor-mo-shi-bi-jiao/" target="_blank" rel="external">Reactor和Proactor模式比较</a></p>
-  
+		<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
+<blockquote>
+<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
+</blockquote>
+<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
+<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
+<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
+<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
+<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
+<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
+<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
+<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+};
+
+#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
+
+static struct list_head inetsw[SOCK_MAX];
+</code></pre><blockquote>
+<p>inetsw在inet_init函数中初始化</p>
+</blockquote>
+<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
+<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
+    INIT_LIST_HEAD(r);
+</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
+<blockquote>
+<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
+</blockquote>
+<pre><code>static struct inet_protosw inetsw_array[] =
+{
+        {
+                .<span class="variable">type =</span>       SOCK_STREAM,
+                .<span class="variable">protocol =</span>   IPPROTO_TCP,
+                .<span class="variable">prot =</span>       &amp;tcp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   <span class="number">0</span>,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+                  INET_PROTOSW_ICSK,
+        },
+
+        {
+                .<span class="variable">type =</span>       SOCK_DGRAM,
+                .<span class="variable">protocol =</span>   IPPROTO_UDP,
+                .<span class="variable">prot =</span>       &amp;udp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
+       },
+
+
+       {
+               .<span class="variable">type =</span>       SOCK_RAW,
+               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
+               .<span class="variable">prot =</span>       &amp;raw_prot,
+               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
+               .<span class="variable">capability =</span> CAP_NET_RAW,
+               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
+       }
+};
+</code></pre><blockquote>
+<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
+    inet_register_protosw(q);
+</code></pre><blockquote>
+<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
+</blockquote>
+<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+
+<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+{
+    <span class="keyword">struct</span> list_head *lh;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">int</span> protocol = p-&gt;protocol;
+    <span class="keyword">struct</span> list_head *last_perm;
+
+    spin_lock_bh(&amp;inetsw_lock);
+
+    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
+        <span class="keyword">goto</span> out_illegal;
+
+    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
+    answer = <span class="literal">NULL</span>;
+    last_perm = &amp;inetsw[p-&gt;type];
+    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+
+        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
+         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
+         * 得到inet_protosw的地址
+         */</span>
+        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+
+        <span class="comment">/* Check only the non-wild match. */</span>
+        <span class="comment">/* 检查是否有已经注册过的socket type
+         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
+         * 且protocol相等，不能覆盖已有的socket类型.
+         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
+         */</span>
+        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
+            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+                <span class="keyword">break</span>;
+            last_perm = lh;
+        }
+
+        answer = <span class="literal">NULL</span>;
+    }
+    <span class="keyword">if</span> (answer)
+        <span class="keyword">goto</span> out_permanent;
+
+    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
+     * the new entry does not override a permanent entry when matched with
+     * a wild-card protocol. But it is allowed to override any existing
+     * non-permanent entry.  This means that when we remove this entry, the 
+     * system automatically returns to the old behavior.
+     * 挂链操作
+     */</span>
+    list_add_rcu(&amp;p-&gt;list, last_perm);
+<span class="keyword">out</span>:
+    spin_unlock_bh(&amp;inetsw_lock);
+
+    synchronize_net();
+
+    <span class="keyword">return</span>;
+
+out_permanent:
+    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
+           protocol);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+out_illegal:
+    printk(KERN_ERR
+           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
+           p-&gt;type);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+}
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/programming/">programming</a>
+  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
 </div>
 
 
@@ -119,7 +236,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" data-title="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" data-title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -128,14 +245,14 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher">
-  <strong>上一篇：</strong><br/>
-  <span>
-  libev-signal watcher</span>
+
+<div class="next">
+<a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/"  title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
+ <strong>下一篇：</strong><br/> 
+ <span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字
+</span>
 </a>
 </div>
-
 
 </nav>
 

@@ -4,27 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>异步非阻塞和同步非阻塞 | don7hao&#39;s blog</title>
+    <title>Nginx--worker进程的信号处理 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="异步非阻塞和同步非阻塞
-美食广场有餐馆A和餐馆B
-
-餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。
-
-餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。
-
-
-异步非阻塞
-异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等">
+    <meta name="description" itemprop="description" content="worker process signal nginx">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="Nginx--worker进程的信号处理 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="worker process signal nginx" />
       
     
     
@@ -71,13 +64,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url" class="article-time">1月 20 2015</a>
+    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
+      <a href="/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/" title="Nginx--worker进程的信号处理" itemprop="url" class="article-time">1月 27 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url"><span>异步非阻塞和同步非阻塞</span></a>
+      <a href="/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/" title="Nginx--worker进程的信号处理" itemprop="url"><span>Nginx--worker进程的信号处理</span></a>
   </h1>
 </header>
 
@@ -87,30 +80,106 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#异步非阻塞和同步非阻塞"><span class="toc-number">1.</span> <span class="toc-text">异步非阻塞和同步非阻塞</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#异步非阻塞"><span class="toc-number">1.1.</span> <span class="toc-text">异步非阻塞</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#同步非阻塞"><span class="toc-number">1.2.</span> <span class="toc-text">同步非阻塞</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#信号处理"><span class="toc-number">1.</span> <span class="toc-text">信号处理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ngx_worker_process_cycle函数"><span class="toc-number">2.</span> <span class="toc-text">ngx_worker_process_cycle函数</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="异步非阻塞和同步非阻塞">异步非阻塞和同步非阻塞</h1>
-<p>美食广场有餐馆A和餐馆B</p>
-<ol>
-<li><p>餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。</p>
-</li>
-<li><p>餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。</p>
-</li>
-</ol>
-<h2 id="异步非阻塞">异步非阻塞</h2>
-<p>异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等餐准备好了通知器就会震动通知你。</p>
-<h2 id="同步非阻塞">同步非阻塞</h2>
-<p>同步阻塞就像你去餐馆B消费，刷完卡带完餐后你就去干其他的事情，过段时间跑到餐馆B询问餐是否准备完毕。</p>
-<p>阅读<br><a href="http://liuxun.org/blog/reactor-he-proactor-mo-shi-bi-jiao/" target="_blank" rel="external">Reactor和Proactor模式比较</a></p>
-  
+		<h2 id="信号处理">信号处理</h2>
+<blockquote>
+<p>worker信号主要是<a href="http://don6hao.github.io/blog/2015/01/04/nginx-init-signal.html" target="_blank" rel="external">ngx_signal_handler函数</a>来处理，它接收到某信号后会设置对应的全局标志位。</p>
+<p>worker进程会调用ngx_worker_process_cycle函数循环检测标志位并进行对应操作。</p>
+</blockquote>
+<h2 id="ngx_worker_process_cycle函数">ngx_worker_process_cycle函数</h2>
+<blockquote>
+<p>ngx_worker_process_cycle函数主要关注4个全局标志位：</p>
+</blockquote>
+<p>&gt;<br>|        标志位      |      含义          |<br>| ————————— | ————————— |<br>| ngx_quit           | 优雅地关闭整个服务 |<br>| ngx_terminate      | 强制关闭整个服务   |<br>| ngx_reopen         | 重新打开服务中的所有文件 |<br>| ngx_exiting        | 退出进程标志位 |</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_worker_process_cycle(ngx_cycle_t *cycle, <span class="keyword">void</span> *data)
+{
+    ngx_int_t worker = (intptr_t) data;
+
+    ngx_uint_t         i;
+    ngx_connection_t  *c;
+
+    ngx_process = NGX_PROCESS_WORKER;
+
+    ngx_worker_process_init(cycle, worker);
+
+    ngx_setproctitle(<span class="string">"worker process"</span>);
+
+    <span class="keyword">for</span> ( ;; ) {
+</code></pre><blockquote>
+<p><strong>ngx_exiting 标志位</strong></p>
+<p>对进程的连接进行清理并进程退出</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_exiting) {
+
+            <span class="built_in">c</span> = cycle-&gt;connections;
+
+            <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; cycle-&gt;connection_n; i++) {
+
+                <span class="comment">/* THREAD: lock */</span>
+
+                <span class="keyword">if</span> (<span class="built_in">c</span>[i].fd != -<span class="number">1</span> &amp;&amp; <span class="built_in">c</span>[i].idle) {
+                    <span class="built_in">c</span>[i].close = <span class="number">1</span>;
+                    <span class="built_in">c</span>[i].read-&gt;handler(<span class="built_in">c</span>[i].read);
+                }
+            }
+
+            <span class="keyword">if</span> (ngx_event_timer_rbtree.root == ngx_event_timer_rbtree.sentinel)
+            {
+                ngx_log_error(<span class="type">NGX_LOG_NOTICE</span>, cycle-&gt;log, <span class="number">0</span>, <span class="string">"exiting"</span>);
+
+                ngx_worker_process_exit(cycle);
+            }
+        }
+
+        ngx_log_debug0(<span class="type">NGX_LOG_DEBUG_EVENT</span>, cycle-&gt;log, <span class="number">0</span>, <span class="string">"worker cycle"</span>);
+
+        ngx_process_events_and_timers(cycle);
+</code></pre><blockquote>
+<p><strong>SIGINT信号</strong></p>
+<p>检测到SIGINT信号，调用ngx_worker_process进程退出</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_terminate) {
+            ngx_log_error(NGX_LOG_NOTICE, cycle<span class="subst">-&gt;</span><span class="keyword">log</span>, <span class="number">0</span>, <span class="string">"exiting"</span>);
+
+            ngx_worker_process_exit(cycle);
+        }
+</code></pre><blockquote>
+<p><strong>SIGQUIT信号</strong></p>
+<p>检测到SIGQUIT信号, 管理套接字设置ngx_exiting标志位</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_quit) {
+            <span class="variable">ngx_quit =</span> <span class="number">0</span>;
+            ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, <span class="number">0</span>,
+                          <span class="string">"gracefully shutting down"</span>);
+            ngx_setproctitle(<span class="string">"worker process is shutting down"</span>);
+
+            <span class="keyword">if</span> (!ngx_exiting) {
+                ngx_close_listening_sockets(cycle);
+                <span class="variable">ngx_exiting =</span> <span class="number">1</span>;
+            }
+        }
+</code></pre><blockquote>
+<p><strong>SIGINT信号</strong></p>
+<p>检测到SIGINT信号，重新打开文件</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_reopen) {
+            ngx_reopen <span class="subst">=</span> <span class="number">0</span>;
+            ngx_log_error(NGX_LOG_NOTICE, cycle<span class="subst">-&gt;</span><span class="keyword">log</span>, <span class="number">0</span>, <span class="string">"reopening logs"</span>);
+            ngx_reopen_files(cycle, <span class="subst">-</span><span class="number">1</span>);
+        }
+    }
+}
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/programming/">programming</a>
+  <a class="article-category-link" href="/categories/Nginx/">Nginx</a>
 </div>
 
 
@@ -119,7 +188,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" data-title="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/" data-title="Nginx--worker进程的信号处理 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -129,13 +198,21 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher">
+ <a href="/2015/01/27/libeio/2015-01-12-libeio_framework/" title="Libeio--libeio流程分析">
   <strong>上一篇：</strong><br/>
   <span>
-  libev-signal watcher</span>
+  Libeio--libeio流程分析</span>
 </a>
 </div>
 
+
+<div class="next">
+<a href="/2015/01/21/libev/libev-watcher/"  title="libev-signal watcher">
+ <strong>下一篇：</strong><br/> 
+ <span>libev-signal watcher
+</span>
+</a>
+</div>
 
 </nav>
 
