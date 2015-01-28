@@ -4,20 +4,19 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog</title>
+    <title>avl-自平衡二叉查找树 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="inetsw struct inet_protosw">
+    <meta name="description" content="avl
+一种自平衡二叉查找树（self-balancing binary search tree）。这种二叉查找树在插入和删除操作中，可以通过一系列的旋转操作来保持平衡，从而保证了二叉查找树的查找效率。最终这种二叉查找树以他们的名字命名为“AVL-Tree”，它也被称为平衡二叉树（Balanced ">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" />
-      
-        <meta name="twitter:description" content="inetsw struct inet_protosw" />
+    <meta name="twitter:title" content="avl-自平衡二叉查找树 | don7hao&#39;s blog" />
       
     
     
@@ -64,13 +63,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url" class="article-time">1月 27 2015</a>
+    <time datetime="2015-01-28T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/28/algorithm/avl/" title="avl-自平衡二叉查找树" itemprop="url" class="article-time">1月 28 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
+      <a href="/2015/01/28/algorithm/avl/" title="avl-自平衡二叉查找树" itemprop="url"><span>avl-自平衡二叉查找树</span></a>
   </h1>
 </header>
 
@@ -80,154 +79,75 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw结构体"><span class="toc-number">1.</span> <span class="toc-text">inetsw结构体</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw_array结构体"><span class="toc-number">2.</span> <span class="toc-text">inetsw_array结构体</span></a></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#avl"><span class="toc-number">1.</span> <span class="toc-text">avl</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#平衡因子"><span class="toc-number">1.1.</span> <span class="toc-text">平衡因子</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#旋转"><span class="toc-number">1.2.</span> <span class="toc-text">旋转</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#LL"><span class="toc-number">1.2.1.</span> <span class="toc-text">LL</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RR"><span class="toc-number">1.2.2.</span> <span class="toc-text">RR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LR"><span class="toc-number">1.2.3.</span> <span class="toc-text">LR</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RL"><span class="toc-number">1.2.4.</span> <span class="toc-text">RL</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#avl插入操作"><span class="toc-number">1.3.</span> <span class="toc-text">avl插入操作</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#RR插入"><span class="toc-number">1.3.1.</span> <span class="toc-text">RR插入</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LR插入"><span class="toc-number">1.3.2.</span> <span class="toc-text">LR插入</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RL插入"><span class="toc-number">1.3.3.</span> <span class="toc-text">RL插入</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#avl插入代码"><span class="toc-number">1.4.</span> <span class="toc-text">avl插入代码</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
+		<h1 id="avl">avl</h1>
+<p>一种自平衡二叉查找树（self-balancing binary search tree）。<br>这种二叉查找树在插入和删除操作中，可以通过一系列的旋转操作来保持平衡，从而保证了二叉查找树的查找效率。<br>最终这种二叉查找树以他们的名字命名为“AVL-Tree”，它也被称为平衡二叉树（Balanced Binary Tree）。</p>
+<h2 id="平衡因子">平衡因子</h2>
+<p>为了保证平衡，AVL树中的每个结点都有一个平衡因子（balance factor，以下用BF表示），它表示这个结点的左、右子树的高度差，也就是左子树的高度减去右子树的高度的结果值。AVL树上所有结点的BF值只能是-1、0、1。反之，只要二叉树上一个结点的BF的绝对值大于1，则该二叉树就不是平衡二叉树。图1演示了平衡二叉树和非平衡二叉树。</p>
+<p><img src="/img/avl_1.png" alt="avl_1" width="600" height="200"> </p>
+
+<h2 id="旋转">旋转</h2>
+<p>AVL树的旋转一共有四种情形，注意所有旋转情况都是围绕着使得二叉树不平衡的第一个节点展开的。<br><strong>旋转就是一个圆圈的方向，逆时针或顺时针</strong></p>
+<h3 id="LL">LL</h3>
+<p>平衡二叉树某一节点的左孩子的左子树上插入一个新的节点，使得该节点不再平衡。这时只需要把树向右旋转一次即可，如图所示，原A的左孩子B变为父结点，A变为其右孩子，而原B的右子树变为A的左子树，注意旋转之后Brh是A的左子树（图上忘在A于Brh之间标实线）</p>
+<p><img src="/img/avl_2.png" alt="avl_2" width="300" height="100"> </p>
+
+<h3 id="RR">RR</h3>
+<p>平衡二叉树某一节点的右孩子的右子树上插入一个新的节点，使得该节点不再平衡。这时只需要把树向左旋转一次即可，如图所示，原A右孩子B变为父结点，A变为其左孩子，而原B的左子树Blh将变为A的右子树。</p>
+<p><img src="/img/avl_3.png" alt="avl_3" width="300" height="100"> </p>
+
+<h3 id="LR">LR</h3>
+<p>平衡二叉树某一节点的左孩子的右子树上插入一个新的节点，使得该节点不再平衡。这时需要旋转两次，仅一次的旋转是不能够使二叉树再次平衡。如图所示，在B节点按照RR型向左旋转一次之后，二叉树在A节点仍然不能保持平衡，这时还需要再向右旋转一次。</p>
+<p><img src="/img/avl_4.png" alt="avl_4" width="600" height="200"> </p>
+
+<h3 id="RL">RL</h3>
+<p>平衡二叉树某一节点的右孩子的左子树上插入一个新的节点，使得该节点不再平衡。同样，这时需要旋转两次，旋转方向刚好同LR型相反。</p>
+<p><img src="/img/avl_5.png" alt="avl_5" width="600" height="200"> </p>
+
+<h2 id="avl插入操作">avl插入操作</h2>
+<p>具体步骤如下：</p>
+<ol>
+<li><p>每当插入一个新结点，从该结点开始向上计算各结点的平衡因子，即计算该结点的祖先结点的平衡因子，若该结点的祖先结点的平衡因子的绝对值均不超过1，则平衡二叉树没有失去平衡，继续插入结点；</p>
+</li>
+<li><p>若插入结点的某祖先结点的平衡因子的绝对值大于1，则找出其中最小不平衡子树的根结点；</p>
+</li>
+<li><p>判断新插入的结点与最小不平衡子树的根结点的关系，确定是哪种类型的调整:<br> 当最小不平衡子树的根节点的BF值为2时：</p>
 <blockquote>
-<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
+<p>如果最小不平衡树的根节点的左孩子的BF值为1，则进行LL型旋转；<br>  如果最小不平衡树的根节点的左孩子的BF值为-1，则进行LR型旋转。</p>
 </blockquote>
-<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
-<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
-<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
-<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
-<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
-<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
-<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
-<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
-};
-
-#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
-
-static struct list_head inetsw[SOCK_MAX];
-</code></pre><blockquote>
-<p>inetsw在inet_init函数中初始化</p>
-</blockquote>
-<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
-<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
-    INIT_LIST_HEAD(r);
-</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
+<p> 当最小不平衡子树根的BF值为-2时：</p>
 <blockquote>
-<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
+<p>如果最小不平衡树的根节点的右孩子的BF值为1，则进行RL型旋转；<br>  如果最小不平衡树的根节点的右孩子的BF值为-1，则进行RR型旋转。</p>
 </blockquote>
-<pre><code>static struct inet_protosw inetsw_array[] =
-{
-        {
-                .<span class="variable">type =</span>       SOCK_STREAM,
-                .<span class="variable">protocol =</span>   IPPROTO_TCP,
-                .<span class="variable">prot =</span>       &amp;tcp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   <span class="number">0</span>,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
-                  INET_PROTOSW_ICSK,
-        },
-
-        {
-                .<span class="variable">type =</span>       SOCK_DGRAM,
-                .<span class="variable">protocol =</span>   IPPROTO_UDP,
-                .<span class="variable">prot =</span>       &amp;udp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
-       },
-
-
-       {
-               .<span class="variable">type =</span>       SOCK_RAW,
-               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
-               .<span class="variable">prot =</span>       &amp;raw_prot,
-               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
-               .<span class="variable">capability =</span> CAP_NET_RAW,
-               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
-       }
-};
-</code></pre><blockquote>
-<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</li>
+</ol>
+<blockquote>
+<p>如果是LL型或RR型，只需旋转一次，在旋转过程中，如果出现冲突，应用旋转优先原则调整冲突；<br>如果是LR型或LR型，则需旋转两次，第一次最小不平衡子树的根结点先不动，调整插入结点所在子树，<br>第二次再调整最小不平衡子树，在旋转过程中，如果出现冲突，应用旋转优先原则调整冲突；</p>
 </blockquote>
-<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
-    inet_register_protosw(q);
-</code></pre><blockquote>
-<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
-</blockquote>
-<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+<p>最后计算调整后的平衡二叉树中各结点的平衡因子，检验是否因为旋转而破坏其他结点的平衡因子，以及调整后的平衡二叉树中是否存在平衡因子大于1的结点。</p>
+<h3 id="RR插入">RR插入</h3>
+<p><img src="/img/avl_9.png" alt="avl_9" width="300" height="200"> </p>
 
-<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
-{
-    <span class="keyword">struct</span> list_head *lh;
-    <span class="keyword">struct</span> inet_protosw *answer;
-    <span class="keyword">int</span> protocol = p-&gt;protocol;
-    <span class="keyword">struct</span> list_head *last_perm;
+<p><img src="/img/avl_8.png" alt="avl_8" width="300" height="200"> </p>
 
-    spin_lock_bh(&amp;inetsw_lock);
+<h3 id="LR插入">LR插入</h3>
+<p><img src="/img/avl_7.png" alt="avl_7" width="300" height="200"> </p>
 
-    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
-        <span class="keyword">goto</span> out_illegal;
+<h3 id="RL插入">RL插入</h3>
+<p><img src="/img/avl_6.png" alt="avl_6" width="300" height="200"> </p>
 
-    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
-    answer = <span class="literal">NULL</span>;
-    last_perm = &amp;inetsw[p-&gt;type];
-    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
-
-        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
-         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
-         * 得到inet_protosw的地址
-         */</span>
-        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
-
-        <span class="comment">/* Check only the non-wild match. */</span>
-        <span class="comment">/* 检查是否有已经注册过的socket type
-         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
-         * 且protocol相等，不能覆盖已有的socket类型.
-         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
-         */</span>
-        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
-            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
-                <span class="keyword">break</span>;
-            last_perm = lh;
-        }
-
-        answer = <span class="literal">NULL</span>;
-    }
-    <span class="keyword">if</span> (answer)
-        <span class="keyword">goto</span> out_permanent;
-
-    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
-     * the new entry does not override a permanent entry when matched with
-     * a wild-card protocol. But it is allowed to override any existing
-     * non-permanent entry.  This means that when we remove this entry, the 
-     * system automatically returns to the old behavior.
-     * 挂链操作
-     */</span>
-    list_add_rcu(&amp;p-&gt;list, last_perm);
-<span class="keyword">out</span>:
-    spin_unlock_bh(&amp;inetsw_lock);
-
-    synchronize_net();
-
-    <span class="keyword">return</span>;
-
-out_permanent:
-    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
-           protocol);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
-
-out_illegal:
-    printk(KERN_ERR
-           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
-           p-&gt;type);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
-}
-</code></pre>  
+<h2 id="avl插入代码">avl插入代码</h2>
+<p><a href="https://github.com/don7hao/algorithm/tree/master/avl" target="_blank" rel="external">https://github.com/don7hao/algorithm/tree/master/avl</a></p>
+  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
+  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
 </div>
 
 
@@ -236,7 +156,7 @@ out_illegal:
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" data-title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/28/algorithm/avl/" data-title="avl-自平衡二叉查找树 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -245,19 +165,11 @@ out_illegal:
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间">
-  <strong>上一篇：</strong><br/>
-  <span>
-  进程虚拟地址空间</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/"  title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
+<a href="/2015/01/28/kernel/mm_struct/"  title="进程虚拟地址空间">
  <strong>下一篇：</strong><br/> 
- <span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字
+ <span>进程虚拟地址空间
 </span>
 </a>
 </div>
