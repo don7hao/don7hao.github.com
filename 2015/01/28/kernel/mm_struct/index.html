@@ -84,7 +84,7 @@
 		</div>
 		
 		<h1 id="mm_struct">mm_struct</h1>
-<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构，由mm_rb指向这颗树。</p>
+<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构。</p>
 <h2 id="虚拟地址空间分布">虚拟地址空间分布</h2>
 <p>主要包括栈,映射空间,堆,bss,数据段,代码段。</p>
 <p>[mmap]是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。<br>[start_code,　end_code]表示代码段的地址空间范围。<br>[start_data,　end_start]表示数据段的地址空间范围。<br>[start_brk,　brk]分别表示heap段的起始空间和当前的heap指针(brk)。<br>[start_stack,　end_stack]表示stack段的地址空间范围<br>[mmap_base]表示memory mapping的起始地址。</p>
@@ -100,9 +100,9 @@
 </code></pre><p><img src="/img/mm_struct_1.png" alt="mm_struct_1" width="800" height="400"> </p>
 
 <h2 id="VMA—虚拟内存区块">VMA—虚拟内存区块</h2>
-<p>VMA是连续分布的内存区域，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块，比如共享库,数据段,代码段等。见图mm_struct_2</p>
+<p>每一个VMA是虚拟地址都是连续分布不会重叠，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块(比如共享库,数据段,代码段,stack, heap等)。见图mm_struct_2</p>
 <h3 id="vm_area_struct">vm_area_struct</h3>
-<p>vm_area_struct用来存储虚拟内存区块的信息(比如共享库区块,数据段区块,代码段区块等)。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
+<p>vm_area_struct用来描述WMA，包括它的起始地址，结束地址，访问权限和行为等。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
 <pre><code>struct vm_area_struct <span class="keyword">*</span> mmap;        /<span class="keyword">*</span> list of VMAs <span class="keyword">*</span>/
 </code></pre><p>每个vm_area_struct存储着一个虚拟地址区块</p>
 <pre><code>struct vm_area_struct {
