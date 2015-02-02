@@ -4,19 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>进程虚拟地址空间 | don7hao&#39;s blog</title>
+    <title>Quick Sort | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="mm_struct
-在进程的task_struct结构中包含一个指向mm_struct结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，当虚拟区块多时采用“红黑树（r">
+    <meta name="description" content="QuickSort
+快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。步骤：1.从队列中挑出一个元素，称为“基准”（pivot）。
+2.重新排序數列，所有元素比基准值小的放在基准前面，所有元素比值基准大的放在基准的後面（相同的">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="进程虚拟地址空间 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="Quick Sort | don7hao&#39;s blog" />
       
     
     
@@ -63,13 +64,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-28T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url" class="article-time">1月 28 2015</a>
+    <time datetime="2015-01-29T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/29/algorithm/quicksort/" title="Quick Sort" itemprop="url" class="article-time">1月 29 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url"><span>进程虚拟地址空间</span></a>
+      <a href="/2015/01/29/algorithm/quicksort/" title="Quick Sort" itemprop="url"><span>Quick Sort</span></a>
   </h1>
 </header>
 
@@ -79,63 +80,84 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#mm_struct"><span class="toc-number">1.</span> <span class="toc-text">mm_struct</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#虚拟地址空间分布"><span class="toc-number">1.1.</span> <span class="toc-text">虚拟地址空间分布</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VMA—虚拟内存区块"><span class="toc-number">1.2.</span> <span class="toc-text">VMA—虚拟内存区块</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_area_struct"><span class="toc-number">1.2.1.</span> <span class="toc-text">vm_area_struct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_operations_struct"><span class="toc-number">1.2.2.</span> <span class="toc-text">vm_operations_struct</span></a></li></ol></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#QuickSort"><span class="toc-number">1.</span> <span class="toc-text">QuickSort</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#快速排序的最坏情况"><span class="toc-number">1.1.</span> <span class="toc-text">快速排序的最坏情况</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#基准的选择"><span class="toc-number">1.2.</span> <span class="toc-text">基准的选择</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#三者取中规则"><span class="toc-number">1.2.1.</span> <span class="toc-text">三者取中规则</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#取随机数k(left≤k≤right)作为基准"><span class="toc-number">1.2.2.</span> <span class="toc-text">取随机数k(left≤k≤right)作为基准</span></a></li></ol></li></ol></li></ol>
 		
 		</div>
 		
-		<h1 id="mm_struct">mm_struct</h1>
-<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构。</p>
-<h2 id="虚拟地址空间分布">虚拟地址空间分布</h2>
-<p>主要包括栈,映射空间,堆,bss,数据段,代码段。</p>
-<p>[mmap]是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。<br>[start_code,　end_code]表示代码段的地址空间范围。<br>[start_data,　end_start]表示数据段的地址空间范围。<br>[start_brk,　brk]分别表示heap段的起始空间和当前的heap指针(brk)。<br>[start_stack,　end_stack]表示stack段的地址空间范围<br>[mmap_base]表示memory mapping的起始地址。</p>
-<p>kernel linux2.6.18</p>
-<pre><code><span class="keyword">struct</span> mm_struct {
-    ......
-    <span class="keyword">struct</span> vm_area_struct * mmap;        <span class="comment">/* list of VMAs */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> mmap_base;        <span class="comment">/* base of mmap area */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_code, end_code, start_data, end_data;
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_brk, brk, start_stack;
-    ......
-};
-</code></pre><p><img src="/img/mm_struct_1.png" alt="mm_struct_1" width="800" height="400"> </p>
+		<h1 id="QuickSort">QuickSort</h1>
+<p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p>
+<p>2.重新排序數列，所有元素比基准值小的放在基准前面，所有元素比值基准大的放在基准的後面（相同的數可以到任一边）。<br>在这个分割结束之后，該基准就位于数列的中间位置。</p>
+<p>3.递归地（recursive）把小于基准的元素子队列和大于基准的元素的子队列排序。</p>
+<p>在平均狀況下，排序n個項目要Ο(n$\log{n}$)次比較。在最坏情况下需要Ο($n^2$)次比較。<br>事实上，快速排序通常明显比其他Ο(n$\log{n}$)算法更快，因為它的內部循环（inner<br>loop）可以在大部分的架构上很有效率地被实现出來。</p>
+<p>代码 1：</p>
+<pre><code>void quick_sort(char <span class="built_in">array</span>[], <span class="built_in">int</span> <span class="built_in">left</span>, <span class="built_in">int</span> <span class="built_in">right</span>)
+{
 
-<h2 id="VMA—虚拟内存区块">VMA—虚拟内存区块</h2>
-<p>每一个VMA是虚拟地址都是连续分布不会重叠，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块(比如共享库,数据段,代码段,stack, heap等)。见图mm_struct_2</p>
-<h3 id="vm_area_struct">vm_area_struct</h3>
-<p>vm_area_struct用来描述WMA，包括它的起始地址，结束地址，访问权限和行为等。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
-<pre><code>struct vm_area_struct <span class="keyword">*</span> mmap;        /<span class="keyword">*</span> list of VMAs <span class="keyword">*</span>/
-</code></pre><p>每个vm_area_struct存储着一个虚拟地址区块</p>
-<pre><code>struct vm_area_struct {
-    struct mm_struct <span class="keyword">*</span> vm_mm;    /<span class="keyword">*</span> 虚拟地址所在的地址空间 <span class="keyword">*</span>/
-    unsigned long vm_start;        /<span class="keyword">*</span> 在vm_mm中的起始地址　<span class="keyword">*</span>/
-    unsigned long vm_end;        /<span class="keyword">*</span> 在vm_mm中的结束地址　<span class="keyword">*</span>/
+    <span class="built_in">int</span> i, j;
+    char pivot;
 
-    /<span class="keyword">*</span> linked list of VM areas per task, sorted by address <span class="keyword">*</span>/
-    struct vm_area_struct <span class="keyword">*</span>vm_next;　/<span class="keyword">*</span> 指向下一个 vm_area_struct <span class="keyword">*</span>/
+    <span class="keyword">if</span> (<span class="built_in">left</span> &lt; <span class="built_in">right</span>){
+        i = <span class="built_in">left</span>, j = <span class="built_in">right</span>+<span class="number">1</span>;
+        pivot = <span class="built_in">array</span>[<span class="built_in">left</span>];
+        <span class="keyword">while</span> (i &lt; j){
+            <span class="keyword">while</span> (pivot &gt; <span class="built_in">array</span>[++i]){
+            }
 
-    pgprot_t vm_page_prot;        /<span class="keyword">*</span> Access permissions of this VMA. <span class="keyword">*</span>/
-    unsigned long vm_flags;        /<span class="keyword">*</span> Flags, listed below. <span class="keyword">*</span>/
-    struct vm_operations_struct <span class="keyword">*</span> vm_ops;
-    .....
+            <span class="keyword">while</span> (pivot &lt; <span class="built_in">array</span>[--j]){
+            }
+
+            <span class="keyword">if</span> (i &lt; j){
+                swap(&amp;<span class="built_in">array</span>[i], &amp;<span class="built_in">array</span>[j]);
+            }
+        }
+
+        swap(&amp;<span class="built_in">array</span>[<span class="built_in">left</span>], &amp;<span class="built_in">array</span>[j]);
+        quick_sort(<span class="built_in">array</span>, <span class="built_in">left</span>, j-<span class="number">1</span>);
+        quick_sort(<span class="built_in">array</span>, j+<span class="number">1</span>, <span class="built_in">right</span>);
+    }
+    return;
 }
-</code></pre><p><img src="/img/mm_struct_2.png" alt="mm_struct_２" width="800" height="400"> </p>
-
-<h3 id="vm_operations_struct">vm_operations_struct</h3>
-<p>vm_area_struct中的vm_operations_struct结构描述操作虚拟内存区块的函数集。<br>比如，open、close 分别用于虚拟区块的打开、关闭，<br>而nopage 用于当虚存页面不在物理内存而引起的“缺页异常”时所应该调用的函数，<br>当 Linux 处理这一缺页异常时（请页机制），就可以为新的虚拟内存区分配实际的物理内存。</p>
-<pre><code><span class="keyword">struct</span> vm_operations_struct {
-    <span class="keyword">void</span> (*open)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">void</span> (*close)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">struct</span> page * (*nopage)(<span class="keyword">struct</span> vm_area_struct * area, <span class="keyword">unsigned</span> <span class="keyword">long</span> address, <span class="keyword">int</span> *type);
-    ......
-};
-</code></pre><p><img src="/img/mm_struct_3.png" alt="mm_struct_3" width="800" height="400"> </p>
-  
+</code></pre><h2 id="快速排序的最坏情况">快速排序的最坏情况</h2>
+<p>在最壞狀況下則需要Ο($n^2$)比较。<br>最坏情况是每次划分选取的基准都是当前无序区中关键字最小(或最大)的记录，划分的结果是基准左边的子区间为空(或右边的子区间为空)，而划分所得的另一个非空的子区间中记录数目，仅仅比划分前的无序区中记录个数减少一个。<br>因此，快速排序必须做n-1次划分，第i次划分开始时区间长度为n-i+1，所需的比较次数为n-i(1≤i≤n-1)，故总的比较次数达到最大值：</p>
+<blockquote>
+<p>Cmax = n(n-1)/2=O($n^2$)</p>
+</blockquote>
+<p>如果按上面给出的划分算法，每次取当前无序区的第1个记录为基准，那么当文件的记录已按递增序(或递减序)排列时，每次划分所取的基准就是当前无序区中关键字最小(或最大)的记录，则快速排序所需的比较次数反而最多。<br>基准的选择影响了算法的性能。</p>
+<h2 id="基准的选择">基准的选择</h2>
+<p>在当前无序区中选取划分的基准关键字是决定算法性能的关键。</p>
+<h3 id="三者取中规则">三者取中规则</h3>
+<p>在当前区间里，将该区间首、尾和中间位置上的关键字比较，取三者之中值所对应的记录作为基准，在划分开始前将该基准记录和该区伺的第1个记录进行交换，此后的划分过程与上面所给的quick_sort算法完全相同。</p>
+<p>代码：</p>
+<pre><code>char <span class="type">Median3</span>(char <span class="type">A</span>[], int <span class="keyword">left</span>, int <span class="keyword">right</span> )
+{
+    int center = (<span class="keyword">left</span> + <span class="keyword">right</span>) / <span class="number">2</span>;
+    <span class="keyword">if</span> ( <span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[center])
+        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[center]);
+    <span class="keyword">if</span> (<span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[<span class="keyword">right</span>])
+        <span class="built_in">swap</span>( &amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[<span class="keyword">right</span>]);
+    <span class="keyword">if</span> ( <span class="type">A</span>[center] &gt; <span class="type">A</span>[<span class="keyword">right</span>] )
+        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">right</span>] );
+    <span class="comment">/* A[left] &lt;= A[center] &lt;= A[right] */</span>
+    <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">left</span>]); <span class="comment">/* 将pivot藏到右边 */</span>
+    <span class="keyword">return</span> <span class="type">A</span>[<span class="keyword">left</span>]; <span class="comment">/* 返回 pivot */</span>
+}
+</code></pre><h3 id="取随机数k(left≤k≤right)作为基准">取随机数k(left≤k≤right)作为基准</h3>
+<p>选取基准最好的方法是用一个随机函数产生一个取位于left和right之间的随机数k(left≤k≤right)，用R[k]作为基准，这相当于强迫R[left..right]中的记录是随机分布的。用此方法所得到的快速排序一般称为随机的快速排序。</p>
+<p>代码：</p>
+<pre><code><span class="type">int</span> get_random(<span class="type">char</span> A[], <span class="type">int</span> left,<span class="type">int</span> right)
+{
+    // 产生 left 和 right 之间的一个随机整数
+    <span class="type">int</span> <span class="literal">result</span> = left + rand()%(right - left + <span class="number">1</span>);
+    swap(&amp;A[<span class="literal">result</span>], &amp;A[left]); /* 将pivot藏到左边 */
+    <span class="keyword">return</span> A[left]; /* 返回 pivot */
+}
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/kernel/">kernel</a>
+  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
 </div>
 
 
@@ -144,7 +166,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/28/kernel/mm_struct/" data-title="进程虚拟地址空间 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/29/algorithm/quicksort/" data-title="Quick Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -153,19 +175,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/28/algorithm/avl/" title="avl-自平衡二叉查找树">
-  <strong>上一篇：</strong><br/>
-  <span>
-  avl-自平衡二叉查找树</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/"  title="Nginx--worker进程的信号处理">
+<a href="/2015/01/28/algorithm/redblack/"  title="红黑树">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--worker进程的信号处理
+ <span>红黑树
 </span>
 </a>
 </div>

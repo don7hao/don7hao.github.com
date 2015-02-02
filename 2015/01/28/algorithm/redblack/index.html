@@ -4,19 +4,16 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>进程虚拟地址空间 | don7hao&#39;s blog</title>
+    <title>红黑树 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
-    
-    <meta name="description" content="mm_struct
-在进程的task_struct结构中包含一个指向mm_struct结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，当虚拟区块多时采用“红黑树（r">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="进程虚拟地址空间 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="红黑树 | don7hao&#39;s blog" />
       
     
     
@@ -64,12 +61,12 @@
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
     <time datetime="2015-01-28T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url" class="article-time">1月 28 2015</a>
+      <a href="/2015/01/28/algorithm/redblack/" title="红黑树" itemprop="url" class="article-time">1月 28 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url"><span>进程虚拟地址空间</span></a>
+      <a href="/2015/01/28/algorithm/redblack/" title="红黑树" itemprop="url"><span>红黑树</span></a>
   </h1>
 </header>
 
@@ -79,63 +76,17 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#mm_struct"><span class="toc-number">1.</span> <span class="toc-text">mm_struct</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#虚拟地址空间分布"><span class="toc-number">1.1.</span> <span class="toc-text">虚拟地址空间分布</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VMA—虚拟内存区块"><span class="toc-number">1.2.</span> <span class="toc-text">VMA—虚拟内存区块</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_area_struct"><span class="toc-number">1.2.1.</span> <span class="toc-text">vm_area_struct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_operations_struct"><span class="toc-number">1.2.2.</span> <span class="toc-text">vm_operations_struct</span></a></li></ol></li></ol></li></ol>
+			
 		
 		</div>
 		
-		<h1 id="mm_struct">mm_struct</h1>
-<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构。</p>
-<h2 id="虚拟地址空间分布">虚拟地址空间分布</h2>
-<p>主要包括栈,映射空间,堆,bss,数据段,代码段。</p>
-<p>[mmap]是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。<br>[start_code,　end_code]表示代码段的地址空间范围。<br>[start_data,　end_start]表示数据段的地址空间范围。<br>[start_brk,　brk]分别表示heap段的起始空间和当前的heap指针(brk)。<br>[start_stack,　end_stack]表示stack段的地址空间范围<br>[mmap_base]表示memory mapping的起始地址。</p>
-<p>kernel linux2.6.18</p>
-<pre><code><span class="keyword">struct</span> mm_struct {
-    ......
-    <span class="keyword">struct</span> vm_area_struct * mmap;        <span class="comment">/* list of VMAs */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> mmap_base;        <span class="comment">/* base of mmap area */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_code, end_code, start_data, end_data;
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_brk, brk, start_stack;
-    ......
-};
-</code></pre><p><img src="/img/mm_struct_1.png" alt="mm_struct_1" width="800" height="400"> </p>
-
-<h2 id="VMA—虚拟内存区块">VMA—虚拟内存区块</h2>
-<p>每一个VMA是虚拟地址都是连续分布不会重叠，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块(比如共享库,数据段,代码段,stack, heap等)。见图mm_struct_2</p>
-<h3 id="vm_area_struct">vm_area_struct</h3>
-<p>vm_area_struct用来描述WMA，包括它的起始地址，结束地址，访问权限和行为等。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
-<pre><code>struct vm_area_struct <span class="keyword">*</span> mmap;        /<span class="keyword">*</span> list of VMAs <span class="keyword">*</span>/
-</code></pre><p>每个vm_area_struct存储着一个虚拟地址区块</p>
-<pre><code>struct vm_area_struct {
-    struct mm_struct <span class="keyword">*</span> vm_mm;    /<span class="keyword">*</span> 虚拟地址所在的地址空间 <span class="keyword">*</span>/
-    unsigned long vm_start;        /<span class="keyword">*</span> 在vm_mm中的起始地址　<span class="keyword">*</span>/
-    unsigned long vm_end;        /<span class="keyword">*</span> 在vm_mm中的结束地址　<span class="keyword">*</span>/
-
-    /<span class="keyword">*</span> linked list of VM areas per task, sorted by address <span class="keyword">*</span>/
-    struct vm_area_struct <span class="keyword">*</span>vm_next;　/<span class="keyword">*</span> 指向下一个 vm_area_struct <span class="keyword">*</span>/
-
-    pgprot_t vm_page_prot;        /<span class="keyword">*</span> Access permissions of this VMA. <span class="keyword">*</span>/
-    unsigned long vm_flags;        /<span class="keyword">*</span> Flags, listed below. <span class="keyword">*</span>/
-    struct vm_operations_struct <span class="keyword">*</span> vm_ops;
-    .....
-}
-</code></pre><p><img src="/img/mm_struct_2.png" alt="mm_struct_２" width="800" height="400"> </p>
-
-<h3 id="vm_operations_struct">vm_operations_struct</h3>
-<p>vm_area_struct中的vm_operations_struct结构描述操作虚拟内存区块的函数集。<br>比如，open、close 分别用于虚拟区块的打开、关闭，<br>而nopage 用于当虚存页面不在物理内存而引起的“缺页异常”时所应该调用的函数，<br>当 Linux 处理这一缺页异常时（请页机制），就可以为新的虚拟内存区分配实际的物理内存。</p>
-<pre><code><span class="keyword">struct</span> vm_operations_struct {
-    <span class="keyword">void</span> (*open)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">void</span> (*close)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">struct</span> page * (*nopage)(<span class="keyword">struct</span> vm_area_struct * area, <span class="keyword">unsigned</span> <span class="keyword">long</span> address, <span class="keyword">int</span> *type);
-    ......
-};
-</code></pre><p><img src="/img/mm_struct_3.png" alt="mm_struct_3" width="800" height="400"> </p>
-  
+		  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/kernel/">kernel</a>
+  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
 </div>
 
 
@@ -144,7 +95,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/28/kernel/mm_struct/" data-title="进程虚拟地址空间 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/28/algorithm/redblack/" data-title="红黑树 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -154,18 +105,18 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/28/algorithm/avl/" title="avl-自平衡二叉查找树">
+ <a href="/2015/01/29/algorithm/quicksort/" title="Quick Sort">
   <strong>上一篇：</strong><br/>
   <span>
-  avl-自平衡二叉查找树</span>
+  Quick Sort</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/"  title="Nginx--worker进程的信号处理">
+<a href="/2015/01/28/algorithm/avl/"  title="avl-自平衡二叉查找树">
  <strong>下一篇：</strong><br/> 
- <span>Nginx--worker进程的信号处理
+ <span>avl-自平衡二叉查找树
 </span>
 </a>
 </div>
