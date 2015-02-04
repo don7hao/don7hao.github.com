@@ -4,20 +4,25 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Python--协程 | don7hao&#39;s blog</title>
+    <title>Merge Sort | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="协程/yield">
+    <meta name="description" content="​归并排序
+归并排序有两种实现方式：自底向上和自顶向下
+自底向上
+ 
+
+
+自底向上的基本思想
+第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Python--协程 | don7hao&#39;s blog" />
-      
-        <meta name="twitter:description" content="协程/yield" />
+    <meta name="twitter:title" content="Merge Sort | don7hao&#39;s blog" />
       
     
     
@@ -64,13 +69,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/python/2014-12-31-协程/" title="Python--协程" itemprop="url" class="article-time">1月 27 2015</a>
+    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url" class="article-time">1月 30 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/27/python/2014-12-31-协程/" title="Python--协程" itemprop="url"><span>Python--协程</span></a>
+      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url"><span>Merge Sort</span></a>
   </h1>
 </header>
 
@@ -80,37 +85,45 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#协程"><span class="toc-number">1.</span> <span class="toc-text">协程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#yield"><span class="toc-number">2.</span> <span class="toc-text">yield</span></a></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#​归并排序"><span class="toc-number">1.</span> <span class="toc-text">​归并排序</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#自底向上"><span class="toc-number">1.1.</span> <span class="toc-text">自底向上</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自底向上的基本思想"><span class="toc-number">1.1.1.</span> <span class="toc-text">自底向上的基本思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">1.1.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自顶向下"><span class="toc-number">1.2.</span> <span class="toc-text">自顶向下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自顶向下的基本思想:"><span class="toc-number">1.2.1.</span> <span class="toc-text">自顶向下的基本思想:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#算法分析"><span class="toc-number">1.3.</span> <span class="toc-text">算法分析</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<h2 id="协程">协程</h2>
-<p>协程看上去也是子程序，但执行过程中，在子程序内部可中断，然后转而执行别的子程序，在适当的时候再返回来接着执行。<br>注意，在一个子程序中中断，去执行其他子程序，不是函数调用，有点类似CPU的中断。</p>
-<p>​对比多线程优势：</p>
-<ol>
-<li>因为子程序切换不是线程切换，而是由程序自身控制，因此，没有线程切换的开销，和多线程比，线程数量越多，协程的性能优势就越明显。</li>
-<li>协程不需要多线程的锁机制，因为只有一个线程，也不存在同时写变量冲突，在协程中控制共享资源不加锁，只需要判断状态就好了，所以执行效率比多线程高很多。</li>
-</ol>
-<p>因为协程是一个线程执行，那怎么利用多核CPU呢？最简单的方法是多进程+协程，既充分利用多核，又充分发挥协程的高效率，可获得极高的性能。</p>
-<h2 id="yield">yield</h2>
-<p>Python对协程的支持还非常有限，用在generator中的yield可以一定程度上实现协程。</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">fab</span><span class="params">(max)</span>:</span> 
-    n, a, b = <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span> 
-    <span class="keyword">while</span> n &lt; max: 
-        <span class="keyword">yield</span> b 
-        <span class="comment"># print b </span>
-        a, b = b, a + b 
-        n = n + <span class="number">1</span>
-<span class="keyword">for</span> i <span class="keyword">in</span> fab(<span class="number">5</span>):
-    <span class="keyword">print</span> i
-</code></pre><p>yield的作用就是把一个函数变成一个 generator，Python 解释器会将其视为一个generator.<br>在for循环执行时，每次循环都会执行fab函数内部的代码，执行到yield b 时，fab 函数就返回一个迭代值，<br>下次迭代时，代码从 yield b 的下一条语句继续执行，而函数的本地变量看起来和上次中断执行前是完全一样的，于是函数继续执行，直到再次遇到 yield。</p>
+		<h1 id="​归并排序">​归并排序</h1>
+<p>归并排序有两种实现方式：自底向上和自顶向下</p>
+<h2 id="自底向上">自底向上</h2>
+<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
+
+
+<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
+<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；<br>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
+<h3 id="代码">代码</h3>
+<blockquote>
+<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+</blockquote>
+<h2 id="自顶向下">自顶向下</h2>
+<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
+<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
+
+
+<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
+<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
+<h3 id="代码-1">代码</h3>
+<blockquote>
+<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+</blockquote>
+<h2 id="算法分析">算法分析</h2>
+<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
+<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
+<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
+<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/Python/">Python</a>
+  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
 </div>
 
 
@@ -119,7 +132,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/27/python/2014-12-31-协程/" data-title="Python--协程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/" data-title="Merge Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -129,18 +142,18 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/27/read/2015-01-16-read-you_should_write_blogs/" title="阅读--you should write blogs">
+ <a href="/2015/02/02/programming/StringToFloat/" title="字符串转浮点数">
   <strong>上一篇：</strong><br/>
   <span>
-  阅读--you should write blogs</span>
+  字符串转浮点数</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/27/libeio/2015-01-12-libeio_data/"  title="Libeio--libeio初始化，REQ/RES队列，锁，线程">
+<a href="/2015/01/29/algorithm/quicksort/"  title="Quick Sort">
  <strong>下一篇：</strong><br/> 
- <span>Libeio--libeio初始化，REQ/RES队列，锁，线程
+ <span>Quick Sort
 </span>
 </a>
 </div>
