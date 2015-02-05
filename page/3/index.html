@@ -97,6 +97,36 @@
 </section>
 
 
+  <section class="post" itemscope itemprop="blogPost">
+    <div id="main-col" class="alignleft">
+    <time datetime="2015-01-02T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/02/kernel/ctags与vim命令快速查看内核源代码/" title="vim命令快速查看内核源代码" itemprop="url"  class="article-time">1月 2 2015</a>
+    </time>
+  <h1 itemprop="name" class="post-title">
+  
+    <a href="/2015/01/02/kernel/ctags与vim命令快速查看内核源代码/" title="vim命令快速查看内核源代码" itemprop="url"><span>vim命令快速查看内核源代码</span></a>
+  
+</h1>
+
+    
+     
+           <p itemprop="description" >shell脚本
+#!/bin/sh
+DIR=`pwd`
+ctags -R --languages=C,C++ --c++-kinds=+p --fields=+iaS --extra=+q $DIR
+find $DIR -name &quot;*.h&quot; -o -name &quot;*.c&quot; -o ...</p>
+        
+    
+
+    <div class="more-link">
+            <!-- <a href="/2015/01/02/kernel/ctags与vim命令快速查看内核源代码/" class="more-link"><span>Read More</span></a> -->
+      <div class="clearfix"></div>
+    </div>
+
+</div>
+</section>
+
+
 
   <nav id="page-nav" class="clearfix">
     <a class="extend prev" rel="prev" href="/page/2/"><span></span>Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span>
@@ -124,7 +154,7 @@
 		
 			<li><a href="/categories/algorithm/" title="algorithm">algorithm<sup>4</sup></a></li>
 		
-			<li><a href="/categories/kernel/" title="kernel">kernel<sup>1</sup></a></li>
+			<li><a href="/categories/kernel/" title="kernel">kernel<sup>2</sup></a></li>
 		
 			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
 		
