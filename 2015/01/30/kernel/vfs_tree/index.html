@@ -103,7 +103,7 @@ struct file_system_type {
     <span class="keyword">struct</span> lock_class_key s_lock_key;
     <span class="keyword">struct</span> lock_class_key s_umount_key;
 };
-</code></pre><p>注册过程实际上将表示各实际文件系统的 struct file_system_type<br>数据结构的实例化，然后形成一个链表，内核中用一个名为 file_systems<br>的全局变量来指向该链表的表头.</p>
+</code></pre><p>注册过程实际上将表示各实际文件系统的 struct file_system_type数据结构的实例化，然后形成一个链表，内核中用一个名为 file_systems的全局变量来指向该链表的表头.</p>
 <h3 id="rootfs注册">rootfs注册</h3>
 <p>rootfs 的注册是通过init_rootfs()这一初始化函数来完成，这意味着rootfs的注册过程是 Linux 内核初始化阶段不可分割的一部分。<br>init_rootfs_fs-&gt;register_filesystem</p>
 <pre><code><span class="keyword">static</span> <span class="keyword">struct</span> file_system_type rootfs_fs_type = {
