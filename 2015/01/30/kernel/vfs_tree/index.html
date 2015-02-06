@@ -168,10 +168,8 @@ struct file_system_type {
 <h3 id="建立根目录">建立根目录</h3>
 <p>在初始化阶段是如何建立根结点的，即 “/“目录。这其中会包括挂载 rootfs 文件系统到根目录 “/“ 的具体过程。<br>构造根目录的代码是在 init_mount_tree函数中。</p>
 <ol>
-<li><p>init_mount_tree()函数会调用do_kern_mount(“rootfs”, 0, “rootfs”, NULL)来挂载前面已经注册了的 rootfs 文件系统。</p>
-</li>
-<li><p>do_kern_mount()函数内部创建VFS的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</p>
-</li>
+<li>init_mount_tree()函数会调用do_kern_mount(“rootfs”, 0, “rootfs”, NULL)来挂载前面已经注册了的 rootfs 文件系统。</li>
+<li>do_kern_mount()函数内部创建VFS的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</li>
 </ol>
 <pre><code><span class="keyword">static</span> <span class="keyword">void</span> __init init_mount_tree(<span class="keyword">void</span>)
 {
