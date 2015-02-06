@@ -4,20 +4,24 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog</title>
+    <title>ramfs文件系统 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="inetsw struct inet_protosw">
+    <meta name="description" content="文件系统注册
+一般文件系统的注册都是通过 module_init 宏
+ramfs注册
+注册ramfs文件系统。module_init-&amp;gt;init_ramfs_fs-&amp;gt;register_filesystem
+module_init(init_ramfs_fs)
+
+static struct">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" />
-      
-        <meta name="twitter:description" content="inetsw struct inet_protosw" />
+    <meta name="twitter:title" content="ramfs文件系统 | don7hao&#39;s blog" />
       
     
     
@@ -64,13 +68,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url" class="article-time">1月 27 2015</a>
+    <time datetime="2015-02-02T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统" itemprop="url" class="article-time">2月 2 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
+      <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统" itemprop="url"><span>ramfs文件系统</span></a>
   </h1>
 </header>
 
@@ -80,146 +84,55 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw结构体"><span class="toc-number">1.</span> <span class="toc-text">inetsw结构体</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw_array结构体"><span class="toc-number">2.</span> <span class="toc-text">inetsw_array结构体</span></a></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统注册"><span class="toc-number">1.</span> <span class="toc-text">文件系统注册</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#ramfs注册"><span class="toc-number">1.1.</span> <span class="toc-text">ramfs注册</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
-<blockquote>
-<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
-</blockquote>
-<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
-<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
-<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
-<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
-<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
-<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
-<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
-<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+		<h2 id="文件系统注册">文件系统注册</h2>
+<p>一般文件系统的注册都是通过 module_init 宏</p>
+<h3 id="ramfs注册">ramfs注册</h3>
+<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&gt;register_filesystem</p>
+<pre><code>module_init(init_ramfs_fs)
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type ramfs_fs_type = {
+    .name        = <span class="string">"ramfs"</span>,
+    .get_sb        = ramfs_get_sb,
+    .kill_sb    = kill_litter_super,
 };
 
-#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
-
-static struct list_head inetsw[SOCK_MAX];
-</code></pre><blockquote>
-<p>inetsw在inet_init函数中初始化</p>
-</blockquote>
-<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
-<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
-    INIT_LIST_HEAD(r);
-</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
-<blockquote>
-<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
-</blockquote>
-<pre><code>static struct inet_protosw inetsw_array[] =
+<span class="keyword">static</span> <span class="keyword">int</span> __init init_ramfs_fs(<span class="keyword">void</span>)
 {
-        {
-                .<span class="variable">type =</span>       SOCK_STREAM,
-                .<span class="variable">protocol =</span>   IPPROTO_TCP,
-                .<span class="variable">prot =</span>       &amp;tcp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   <span class="number">0</span>,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
-                  INET_PROTOSW_ICSK,
-        },
-
-        {
-                .<span class="variable">type =</span>       SOCK_DGRAM,
-                .<span class="variable">protocol =</span>   IPPROTO_UDP,
-                .<span class="variable">prot =</span>       &amp;udp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
-       },
-
-
-       {
-               .<span class="variable">type =</span>       SOCK_RAW,
-               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
-               .<span class="variable">prot =</span>       &amp;raw_prot,
-               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
-               .<span class="variable">capability =</span> CAP_NET_RAW,
-               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
-       }
-};
-</code></pre><blockquote>
-<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
-</blockquote>
-<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
-    inet_register_protosw(q);
-</code></pre><blockquote>
-<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
-</blockquote>
-<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
-
-<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+    <span class="keyword">return</span> register_filesystem(&amp;ramfs_fs_type);
+}
+</code></pre><p>把ramfs挂在到全局file_systems链表上。</p>
+<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
 {
-    <span class="keyword">struct</span> list_head *lh;
-    <span class="keyword">struct</span> inet_protosw *answer;
-    <span class="keyword">int</span> protocol = p-&gt;protocol;
-    <span class="keyword">struct</span> list_head *last_perm;
+    <span class="keyword">int</span> res = <span class="number">0</span>;
+    <span class="keyword">struct</span> file_system_type ** p;
 
-    spin_lock_bh(&amp;inetsw_lock);
+    <span class="keyword">if</span> (!fs)
+        <span class="keyword">return</span> -EINVAL;
+    <span class="keyword">if</span> (fs-&gt;next)
+        <span class="keyword">return</span> -EBUSY;
+    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
+    write_lock(&amp;file_systems_lock);
+    p = find_filesystem(fs-&gt;name);
+    <span class="keyword">if</span> (*p)
+        res = -EBUSY;
+    <span class="keyword">else</span>
+        *p = fs;
+    write_unlock(&amp;file_systems_lock);
+    <span class="keyword">return</span> res;
+}
 
-    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
-        <span class="keyword">goto</span> out_illegal;
-
-    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
-    answer = <span class="literal">NULL</span>;
-    last_perm = &amp;inetsw[p-&gt;type];
-    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
-
-        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
-         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
-         * 得到inet_protosw的地址
-         */</span>
-        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
-
-        <span class="comment">/* Check only the non-wild match. */</span>
-        <span class="comment">/* 检查是否有已经注册过的socket type
-         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
-         * 且protocol相等，不能覆盖已有的socket类型.
-         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
-         */</span>
-        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
-            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
-                <span class="keyword">break</span>;
-            last_perm = lh;
-        }
-
-        answer = <span class="literal">NULL</span>;
-    }
-    <span class="keyword">if</span> (answer)
-        <span class="keyword">goto</span> out_permanent;
-
-    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
-     * the new entry does not override a permanent entry when matched with
-     * a wild-card protocol. But it is allowed to override any existing
-     * non-permanent entry.  This means that when we remove this entry, the 
-     * system automatically returns to the old behavior.
-     * 挂链操作
-     */</span>
-    list_add_rcu(&amp;p-&gt;list, last_perm);
-<span class="keyword">out</span>:
-    spin_unlock_bh(&amp;inetsw_lock);
-
-    synchronize_net();
-
-    <span class="keyword">return</span>;
-
-out_permanent:
-    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
-           protocol);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
-
-out_illegal:
-    printk(KERN_ERR
-           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
-           p-&gt;type);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
+{
+    <span class="keyword">struct</span> file_system_type **p;
+    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
+        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
+            <span class="keyword">break</span>;
+    <span class="keyword">return</span> p;
 }
 </code></pre>  
 	</div>
@@ -227,7 +140,7 @@ out_illegal:
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
+  <a class="article-category-link" href="/categories/kernel/">kernel</a>
 </div>
 
 
@@ -236,7 +149,7 @@ out_illegal:
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" data-title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/02/02/kernel/ramfs/" data-title="ramfs文件系统 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -245,19 +158,11 @@ out_illegal:
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/27/python/2014-12-31-函数式编程/" title="Python--函数式编程">
-  <strong>上一篇：</strong><br/>
-  <span>
-  Python--函数式编程</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/"  title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
+<a href="/2015/02/02/programming/StringToFloat/"  title="字符串转浮点数">
  <strong>下一篇：</strong><br/> 
- <span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字
+ <span>字符串转浮点数
 </span>
 </a>
 </div>

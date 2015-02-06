@@ -1,0 +1,525 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>VFS目录树 | don7hao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="don7hao">
+    
+    <meta name="description" content="VFS目录树
+系统初始化期间，Linux 都首先要在内存当中构造一棵VFS的目录树，实际上便是在内存中建立相应的数据结构。
+文件系统注册
+在 Linux 源代码中，每种实际的文件系统用以下的数据结构表示：
+struct file_system_type {
+    const char *name;">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="don6hao" />
+    <meta name="twitter:title" content="VFS目录树 | don7hao&#39;s blog" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="don7hao&#39;s blog">don7hao&#39;s blog</a></h1>
+				<h2 class="blog-motto"><a href="/">Write it step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/categories">目录</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li><form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:don7hao.github.com">
+					</form></li>
+				</ul>
+			</nav>
+</div>
+    </header>
+    <div id="wrap">
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/30/kernel/vfs_tree/" title="VFS目录树" itemprop="url" class="article-time">1月 30 2015</a>
+    </time>
+
+  <h1 itemprop="name" class="article-name">
+    
+      <a href="/2015/01/30/kernel/vfs_tree/" title="VFS目录树" itemprop="url"><span>VFS目录树</span></a>
+  </h1>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS目录树"><span class="toc-number">1.</span> <span class="toc-text">VFS目录树</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统注册"><span class="toc-number">1.1.</span> <span class="toc-text">文件系统注册</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#rootfs注册"><span class="toc-number">1.1.1.</span> <span class="toc-text">rootfs注册</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VFS根目录建立"><span class="toc-number">1.2.</span> <span class="toc-text">VFS根目录建立</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#命名空间"><span class="toc-number">1.2.1.</span> <span class="toc-text">命名空间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vfsmount"><span class="toc-number">1.2.2.</span> <span class="toc-text">vfsmount</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#建立根目录"><span class="toc-number">1.2.3.</span> <span class="toc-text">建立根目录</span></a></li></ol></li></ol></li></ol>
+		
+		</div>
+		
+		<h1 id="VFS目录树">VFS目录树</h1>
+<p>系统初始化期间，Linux 都首先要在内存当中构造一棵VFS的目录树，实际上便是在内存中建立相应的数据结构。</p>
+<h2 id="文件系统注册">文件系统注册</h2>
+<p>在 Linux 源代码中，每种实际的文件系统用以下的数据结构表示：</p>
+<pre><code><span class="keyword">struct</span> file_system_type {
+    <span class="keyword">const</span> <span class="built_in">char</span> *name;
+    <span class="keyword">int</span> fs_flags;
+    <span class="keyword">int</span> (*get_sb) (<span class="keyword">struct</span> file_system_type *, <span class="keyword">int</span>,
+               <span class="keyword">const</span> <span class="built_in">char</span> *, <span class="keyword">void</span> *, <span class="keyword">struct</span> vfsmount *);
+    <span class="keyword">void</span> (*kill_sb) (<span class="keyword">struct</span> super_block *);
+    <span class="keyword">struct</span> <span class="keyword">module</span> *owner;
+    <span class="keyword">struct</span> file_system_type * next;
+    <span class="keyword">struct</span> list_head fs_supers;
+    <span class="keyword">struct</span> lock_class_key s_lock_key;
+    <span class="keyword">struct</span> lock_class_key s_umount_key;
+};
+</code></pre><p>注册过程实际上将表示各实际文件系统的 struct file_system_type<br>数据结构的实例化，然后形成一个链表，内核中用一个名为 file_systems<br>的全局变量来指向该链表的表头.</p>
+<h3 id="rootfs注册">rootfs注册</h3>
+<p>rootfs 的注册是通过init_rootfs()这一初始化函数来完成，这意味着rootfs的注册过程是 Linux 内核初始化阶段不可分割的一部分。<br>init_rootfs_fs-&gt;register_filesystem</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">struct</span> file_system_type rootfs_fs_type = {
+    .name        = <span class="string">"rootfs"</span>,
+    .get_sb        = rootfs_get_sb, <span class="comment">/* 创建superblock*/</span>
+    .kill_sb    = kill_litter_super,
+};
+
+<span class="keyword">int</span> __init init_rootfs(<span class="keyword">void</span>)
+{
+    <span class="keyword">return</span> register_filesystem(&amp;rootfs_fs_type);
+}
+</code></pre><p>把rootfs挂在到全局file_systems链表上。</p>
+<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
+{
+    <span class="keyword">int</span> res = <span class="number">0</span>;
+    <span class="keyword">struct</span> file_system_type ** p;
+
+    <span class="keyword">if</span> (!fs)
+        <span class="keyword">return</span> -EINVAL;
+    <span class="keyword">if</span> (fs-&gt;next)
+        <span class="keyword">return</span> -EBUSY;
+    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
+    write_lock(&amp;file_systems_lock);
+    p = find_filesystem(fs-&gt;name);
+    <span class="keyword">if</span> (*p)
+        res = -EBUSY;
+    <span class="keyword">else</span>
+        *p = fs;
+    write_unlock(&amp;file_systems_lock);
+    <span class="keyword">return</span> res;
+}
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
+{
+    <span class="keyword">struct</span> file_system_type **p;
+    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
+        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
+            <span class="keyword">break</span>;
+    <span class="keyword">return</span> p;
+}
+</code></pre><p>注册之后的 file_systems 链表结构如下图所示：</p>
+<p><img src="/img/vfs_tree_1.gif" alt="vfs_tree_1"> </p>
+
+
+<h2 id="VFS根目录建立">VFS根目录建立</h2>
+<h3 id="命名空间">命名空间</h3>
+<p>每个进程可拥有自己的已安装文件树——叫做进程的命名空间（namespace）。<br>对于每一个进程都有自己的namespace，这可以理解为这个进程的地盘。在这里，所有的文件系统都要挂上来统一管理。<br>通常大多数进程共享一个命名空间，即位于系统的根文件系统且被init进程使用的已安装文件系统树。<br>不过如果clone()系统调用以CLONE_NEWNS标志创建一个新进程，那么进程将获取一个新的命名空间，这个新的命名空间随后由子进程继承（如果父进程没有以CLONE_NEWNS标志创建这些进程）。</p>
+<pre><code><span class="keyword">struct</span> <span class="class"><span class="keyword">namespace</span> </span>{
+    atomic_t                count;        <span class="comment">/* 引用计数 */</span>
+    <span class="keyword">struct</span> vfsmount *        root;        <span class="comment">/* 根目录的 vfsmount */</span>
+    <span class="keyword">struct</span> list_head        list;         <span class="comment">/* 所有已mount的文件系统都挂载这链表上 */</span>
+    wait_queue_head_t poll;
+    <span class="keyword">int</span> event;
+};
+</code></pre><h3 id="vfsmount">vfsmount</h3>
+<p>已安装文件系统描述符vfsmount。<br>对于每一个命名空间，所有属于此命名空间的已安装的文件系统描述符形成了一个双向循环链表。<br>下图vfs_tree_1，namespace结构的list字段存放链表的头，vfsmount描述符的mnt_list字段包含链表中指向相邻元素的指针。</p>
+<p><img src="/img/vfs_tree_2.gif" alt="vfs_tree_2" width="800" height="400"> </p>
+
+<h3 id="建立根目录">建立根目录</h3>
+<p>在初始化阶段是如何建立根结点的，即 “/“目录。这其中会包括挂载 rootfs 文件系统到根目录 “/“ 的具体过程。<br>构造根目录的代码是在 init_mount_tree函数中。</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span> __init init_mount_tree(<span class="keyword">void</span>)
+{
+    <span class="keyword">struct</span> vfsmount *mnt;
+    <span class="keyword">struct</span> <span class="keyword">namespace</span> *<span class="keyword">namespace</span>;
+    <span class="keyword">struct</span> task_struct *g, *p;
+
+    <span class="comment">//do_kern_mount函数主要作用：</span>
+    <span class="comment">//1.在内存里申请了一块该类型的内存空间（struct vfsmount *mnt），并初始化其部分成员变量</span>
+    <span class="comment">//2.调用rootfs-&gt;get_sb_nodev函数在内存中分配一个超级块结构 (struct super_block) sb，</span>
+    <span class="comment">//  并初始化其部分成员变量,将成员s_instances插入到rootfs中的fs_supers指向的双向链表中</span>
+    <span class="comment">//3.调用rootfs-&gt;get_sb_nodev-&gt;fill_super-&gt;simple_fill_super函数:</span>
+    <span class="comment">//  在内存中分配了一个inode (struct inode) ，并初始化其部分成员变量（i_op、i_fop等)</span>
+    <span class="comment">//  还有生成根目录dentry。root = d_alloc_root(inode);</span>
+    mnt = do_kern_mount(<span class="string">"rootfs"</span>, <span class="number">0</span>, <span class="string">"rootfs"</span>, NULL);
+    <span class="keyword">if</span> (IS_ERR(mnt))
+        panic(<span class="string">"Can't create rootfs"</span>);
+    <span class="comment">//在内存里申请命名空间</span>
+    <span class="keyword">namespace</span> = kmalloc(<span class="keyword">sizeof</span>(*<span class="keyword">namespace</span>), GFP_KERNEL);
+    <span class="keyword">if</span> (!<span class="keyword">namespace</span>)
+        panic(<span class="string">"Can't allocate initial namespace"</span>);
+    atomic_set(&amp;<span class="keyword">namespace</span>-&gt;count, <span class="number">1</span>);
+    INIT_LIST_HEAD(&amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+    init_waitqueue_head(&amp;<span class="keyword">namespace</span>-&gt;poll);
+    <span class="keyword">namespace</span>-&gt;event = <span class="number">0</span>;
+    <span class="comment">//如上图vfs_tree_1所示，把mnt_list挂在到namespace-&gt;list上</span>
+    list_add(&amp;mnt-&gt;mnt_list, &amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+    <span class="keyword">namespace</span>-&gt;root = mnt;
+    mnt-&gt;mnt_namespace = <span class="keyword">namespace</span>;
+
+    <span class="comment">//为系统最开始的进程(即init_task进程)准备它的进程数据块中的namespace</span>
+    <span class="comment">//将mnt和dentry信息记录在了init_task进程的进程数据块中，</span>
+    <span class="comment">//这样所有以后从init_task进程fork出来的进程也都先天地继承了这一信息</span>
+    init_task.<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+    read_lock(&amp;tasklist_lock);
+    do_each_thread(g, p) {
+        get_namespace(<span class="keyword">namespace</span>);
+        p-&gt;<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+    } while_each_thread(g, p);
+    read_unlock(&amp;tasklist_lock);
+
+    <span class="comment">//下面两行就是把mnt和dentry信息记录在了当前进程的 fs结构中</span>
+    <span class="comment">//namespace-&gt;root指向roofs的vfsmount</span>
+    <span class="comment">//namespace-&gt;root-&gt;mnt_root指向根目录dentry</span>
+    set_fs_pwd(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+    set_fs_root(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+}
+</code></pre><p>函数init_mount_tree调用完毕后，结构如下图：</p>
+<p><img src="/img/vfs_tree_3.gif" alt="vfs_tree_3" width="800" height="400"> </p>
+
+
+
+<p>参考文档：</p>
+<ol>
+<li><a href="http://www.ibm.com/developerworks/cn/linux/l-vfs/" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/linux/l-vfs/</a></li>
+</ol>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/kernel/">kernel</a>
+</div>
+
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://don7hao.github.com/2015/01/30/kernel/vfs_tree/" data-title="VFS目录树 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/02/02/programming/StringToFloat/" title="字符串转浮点数">
+  <strong>上一篇：</strong><br/>
+  <span>
+  字符串转浮点数</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/01/30/algorithm/merge_sort/"  title="Merge Sort">
+ <strong>下一篇：</strong><br/> 
+ <span>Merge Sort
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread"></div>
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/Libeio/" title="Libeio">Libeio<sup>2</sup></a></li>
+		
+			<li><a href="/categories/Nginx/" title="Nginx">Nginx<sup>5</sup></a></li>
+		
+			<li><a href="/categories/Python/" title="Python">Python<sup>2</sup></a></li>
+		
+			<li><a href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/" title="TCP_IP.Architecture.Design.and.Implementation.in.Linux">TCP_IP.Architecture.Design.and.Implementation.in.Linux<sup>3</sup></a></li>
+		
+			<li><a href="/categories/algorithm/" title="algorithm">algorithm<sup>4</sup></a></li>
+		
+			<li><a href="/categories/kernel/" title="kernel">kernel<sup>5</sup></a></li>
+		
+			<li><a href="/categories/kernel-2-6-18/" title="kernel-2.6.18">kernel-2.6.18<sup>0</sup></a></li>
+		
+			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
+		
+			<li><a href="/categories/programming/" title="programming">programming<sup>2</sup></a></li>
+		
+			<li><a href="/categories/read/" title="read">read<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+      <li><a href="http://yangjian.me" target="_blank" title="YangJian">Alimon's Blog</a></li>
+      <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
+    </ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="null" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+</div>
+    <footer><div id="footer" >
+	
+    <div class="social-font" class="clearfix">
+        
+        
+        <a href="https://github.com/don7hao" target="_blank" class="icon-github" title="github"></a>
+        
+        
+        
+        <a href="https://twitter.com/don6hao" target="_blank" class="icon-twitter" title="twitter"></a>
+        
+        
+        
+        
+        <a href="mailto:don7hao@gmail.com" target="_blank" class="icon-email" title="Email Me"></a>
+        
+    </div>
+	<section class="info">
+		<p class="l1">
+            This is don7hao&#39;s personal blog.
+        </p>
+            <!-- <br/> -->
+        <p class="l2">
+			好记性不如烂笔头
+        </p>
+	</section>
+	 
+		<p class="copyright">Powered by <a href="http://zespia.tw/hexo/" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/RagingCat/hexo-theme-ragingcat" target="_blank" title="hexo-theme-ragingcat">Raging Cat</a> © 2015
+		
+		<a href="http://don7hao.github.com/about" target="_blank" title="don7hao">don7hao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize();
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"don7hao"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0]
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+});
+</script>
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'null', 'don7hao.info');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+  </body>
+</html>

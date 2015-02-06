@@ -65,6 +65,38 @@
   <section class="post" itemscope itemprop="blogPost">
     <div id="main-col" class="alignleft">
     <time datetime="2015-02-02T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统" itemprop="url"  class="article-time">2月 2 2015</a>
+    </time>
+  <h1 itemprop="name" class="post-title">
+  
+    <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统" itemprop="url"><span>ramfs文件系统</span></a>
+  
+</h1>
+
+    
+     
+           <p itemprop="description" >文件系统注册
+一般文件系统的注册都是通过 module_init 宏
+ramfs注册
+注册ramfs文件系统。module_init-&amp;gt;init_ramfs_fs-&amp;gt;register_filesystem
+module_init(init_ramfs_fs)
+
+sta...</p>
+        
+    
+
+    <div class="more-link">
+            <!-- <a href="/2015/02/02/kernel/ramfs/" class="more-link"><span>Read More</span></a> -->
+      <div class="clearfix"></div>
+    </div>
+
+</div>
+</section>
+
+
+  <section class="post" itemscope itemprop="blogPost">
+    <div id="main-col" class="alignleft">
+    <time datetime="2015-02-02T08:45:07.000Z" itemprop="datePublished">
       <a href="/2015/02/02/programming/StringToFloat/" title="字符串转浮点数" itemprop="url"  class="article-time">2月 2 2015</a>
     </time>
   <h1 itemprop="name" class="post-title">
@@ -88,6 +120,37 @@
 
     <div class="more-link">
             <!-- <a href="/2015/02/02/programming/StringToFloat/" class="more-link"><span>Read More</span></a> -->
+      <div class="clearfix"></div>
+    </div>
+
+</div>
+</section>
+
+
+  <section class="post" itemscope itemprop="blogPost">
+    <div id="main-col" class="alignleft">
+    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/30/kernel/vfs_tree/" title="VFS目录树" itemprop="url"  class="article-time">1月 30 2015</a>
+    </time>
+  <h1 itemprop="name" class="post-title">
+  
+    <a href="/2015/01/30/kernel/vfs_tree/" title="VFS目录树" itemprop="url"><span>VFS目录树</span></a>
+  
+</h1>
+
+    
+     
+           <p itemprop="description" >VFS目录树
+系统初始化期间，Linux 都首先要在内存当中构造一棵VFS的目录树，实际上便是在内存中建立相应的数据结构。
+文件系统注册
+在 Linux 源代码中，每种实际的文件系统用以下的数据结构表示：
+struct file_system_type {
+    const c...</p>
+        
+    
+
+    <div class="more-link">
+            <!-- <a href="/2015/01/30/kernel/vfs_tree/" class="more-link"><span>Read More</span></a> -->
       <div class="clearfix"></div>
     </div>
 
@@ -292,58 +355,6 @@ VFS是一种软件机制，也称它为...</p>
 </section>
 
 
-  <section class="post" itemscope itemprop="blogPost">
-    <div id="main-col" class="alignleft">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"  class="article-time">1月 27 2015</a>
-    </time>
-  <h1 itemprop="name" class="post-title">
-  
-    <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
-  
-</h1>
-
-    
-     
-      <p itemprop="description">inetsw struct inet_protosw</p>
-      
-    
-
-    <div class="more-link">
-            <!-- <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" class="more-link"><span>Read More</span></a> -->
-      <div class="clearfix"></div>
-    </div>
-
-</div>
-</section>
-
-
-  <section class="post" itemscope itemprop="blogPost">
-    <div id="main-col" class="alignleft">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/" title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字" itemprop="url"  class="article-time">1月 27 2015</a>
-    </time>
-  <h1 itemprop="name" class="post-title">
-  
-    <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/" title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字</span></a>
-  
-</h1>
-
-    
-     
-      <p itemprop="description">inet_create</p>
-      
-    
-
-    <div class="more-link">
-            <!-- <a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/" class="more-link"><span>Read More</span></a> -->
-      <div class="clearfix"></div>
-    </div>
-
-</div>
-</section>
-
-
 
   <nav id="page-nav" class="clearfix">
     <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/2/">Next<span></span></a>
@@ -371,7 +382,7 @@ VFS是一种软件机制，也称它为...</p>
 		
 			<li><a href="/categories/algorithm/" title="algorithm">algorithm<sup>4</sup></a></li>
 		
-			<li><a href="/categories/kernel/" title="kernel">kernel<sup>3</sup></a></li>
+			<li><a href="/categories/kernel/" title="kernel">kernel<sup>5</sup></a></li>
 		
 			<li><a href="/categories/kernel-2-6-18/" title="kernel-2.6.18">kernel-2.6.18<sup>0</sup></a></li>
 		
