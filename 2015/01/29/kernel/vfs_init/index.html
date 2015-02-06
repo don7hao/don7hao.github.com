@@ -4,20 +4,22 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Python--函数式编程 | don7hao&#39;s blog</title>
+    <title>VFS-Virtual File System in Linux | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="匿名函数/闭包/装饰器">
+    <meta name="description" content="VFS 
+VFS:Virtual File System虚拟文件系统或Virtual File Switch虚拟文件转换/开关。
+什么是VFS
+VFS是Linux和UNIX文件系统中采用的一种技术机制，旨在一个操作系统中支持多个不同类型的文件系统。
+VFS是一种软件机制，也称它为Linux 的文件系">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Python--函数式编程 | don7hao&#39;s blog" />
-      
-        <meta name="twitter:description" content="匿名函数/闭包/装饰器" />
+    <meta name="twitter:title" content="VFS-Virtual File System in Linux | don7hao&#39;s blog" />
       
     
     
@@ -64,13 +66,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-27T06:09:20.000Z" itemprop="datePublished">
-      <a href="/2015/01/27/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url" class="article-time">1月 27 2015</a>
+    <time datetime="2015-01-29T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/29/kernel/vfs_init/" title="VFS-Virtual File System in Linux" itemprop="url" class="article-time">1月 29 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/27/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url"><span>Python--函数式编程</span></a>
+      <a href="/2015/01/29/kernel/vfs_init/" title="VFS-Virtual File System in Linux" itemprop="url"><span>VFS-Virtual File System in Linux</span></a>
   </h1>
 </header>
 
@@ -80,63 +82,68 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#什么是函数式编程"><span class="toc-number">1.</span> <span class="toc-text">什么是函数式编程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名函数"><span class="toc-number">1.1.</span> <span class="toc-text">匿名函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#闭包"><span class="toc-number">1.2.</span> <span class="toc-text">闭包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#装饰器"><span class="toc-number">1.3.</span> <span class="toc-text">装饰器</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS_"><span class="toc-number">1.</span> <span class="toc-text">VFS </span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#什么是VFS"><span class="toc-number">1.1.</span> <span class="toc-text">什么是VFS</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统几个数据结构"><span class="toc-number">1.2.</span> <span class="toc-text">文件系统几个数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#superblock"><span class="toc-number">1.2.1.</span> <span class="toc-text">superblock</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#inode_(i节点)"><span class="toc-number">1.2.2.</span> <span class="toc-text">inode (i节点)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#dentry_(目录块)"><span class="toc-number">1.2.3.</span> <span class="toc-text">dentry (目录块)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#file"><span class="toc-number">1.2.4.</span> <span class="toc-text">file</span></a></li></ol></li></ol></li></ol>
 		
 		</div>
 		
-		<h1 id="什么是函数式编程">什么是函数式编程</h1>
-<p>函数式编程就是一种抽象程度很高的编程范式，纯粹的函数式编程语言编写的函数没有变量，因此，任意一个函数，只要输入是确定的，输出就是确定的，这种纯函数我们称之为没有副作用。而允许使用变量的程序设计语言，由于函数内部的变量状态不确定，同样的输入，可能得到不同的输出，因此，这种函数是有副作用的。<br>函数式编程的一个特点就是，允许把函数本身作为参数传入另一个函数，还允许返回一个函数！<br>把函数作为参数传入，或者把函数作为返回值返回，这样的函数称为高阶函数，函数式编程就是指这种高度抽象的编程范式。</p>
-<h2 id="匿名函数">匿名函数</h2>
-<p>关键字lambda表示匿名函数，冒号前面的x表示函数参数。<br>匿名函数有个限制，就是只能有一个表达式，不用写return，返回值就是该表达式的结果。<br>用匿名函数有个好处，因为函数没有名字，不必担心函数名冲突。匿名函数也是一个函数对象，也可以把匿名函数赋值给一个变量，再利用变量来调用该函数：</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">prod</span><span class="params">(x,y)</span>:</span>
-    <span class="keyword">return</span> <span class="keyword">lambda</span> x,y:x*y
-</code></pre><h2 id="闭包">闭包</h2>
-<p>闭包就是根据不同的配置信息得到不同的结果<br>再来看看专业的解释:闭包（Closure）是词法闭包（Lexical Closure）的简称，是引用了自由变量的函数。这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外。所以，有另一种说法认为闭包是由函数和与其相关的引用环境组合而成的实体。<br>通俗的讲就是：如果在一个内部函数里，对在外部作用域（但不是在全局作用域）的变量进行引用，那么内部函数就被认为是闭包（closure）。它只不过是个“内层”的函数，由一个名字（变量）来指代，而这个名字（变量）对于“外层”包含它的函数而言，是本地变量。</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">make_adder</span><span class="params">(addend)</span>:</span>    
-    <span class="function"><span class="keyword">def</span> <span class="title">adder</span><span class="params">(augend)</span>:</span>        
-        <span class="keyword">return</span> augend + addend   
-    <span class="keyword">return</span> adder 
-p = make_adder(<span class="number">23</span>) 
-q = make_adder(<span class="number">44</span>)
-<span class="keyword">print</span> p(<span class="number">100</span>)
-<span class="keyword">print</span> q(<span class="number">100</span>)
-</code></pre><p>执行结果：</p>
+		<h1 id="VFS_">VFS </h1>
+<p>VFS:Virtual File System虚拟文件系统或Virtual File Switch虚拟文件转换/开关。</p>
+<h2 id="什么是VFS">什么是VFS</h2>
+<p>VFS是Linux和UNIX文件系统中采用的一种技术机制，旨在一个操作系统中支持多个不同类型的文件系统。</p>
+<p>VFS是一种软件机制，也称它为Linux 的文件系统管理者更确切点，与它相关的数据结构只存在于物理内存当中。所以在每次系统初始化期间，Linux都首先要在内存当中构造一棵VFS的目录树(在Linux的源代码里称之为namespace)，实际上便是在内存中建立相应的数据结构。</p>
+<p>VFS是操作系统内核中这样一组数据结构与子程序的集合，它位于操作系统系统调用界面与具体类型文件系统之间，负责：</p>
+<ol>
+<li><p>记录操作系统中可以支持和已经安装有哪些文件系统类型，</p>
+</li>
+<li><p>将相关系统调用转换为对具体类型文件系统的调用，</p>
+</li>
+<li><p>负责不同类型文件系统间的协同工作(例如跨FS复制)，</p>
+</li>
+<li><p>实现对不同类型文件系统的动态装卸和可扩充性等。</p>
+</li>
+</ol>
+<p>通过以上功能，VFS:</p>
+<ol>
+<li><p>向用户、应用程序、和操作系统其他部件提供了一个通用的、统一的、标准的、抽象的、虚拟的系统调用接口界面(所以称Virtual)</p>
+</li>
+<li><p>对以上应用程序等掩盖不同类型文件系统的差异和细节</p>
+</li>
+<li><p>为以上应用程序等提供了对具体文件系统类型的程序独立性和透明性。</p>
+</li>
+</ol>
 <blockquote>
-<p>123</p>
-<p>144</p>
+<p>例如，当用户程序AP1在两次运行中分别读EXT2、NTFS文件，都使用同样的read(…)系统调用函数,程序AP1不必改变</p>
 </blockquote>
-<p>代码二：<br>    def line_conf(a, b):<br>        def line(x):<br>            return ax + b<br>        return line</p>
-<pre><code><span class="variable">line1 =</span> line_conf(<span class="number">1</span>, <span class="number">1</span>)
-<span class="variable">line2 =</span> line_conf(<span class="number">4</span>, <span class="number">5</span>)
-print(line1(<span class="number">5</span>), line2(<span class="number">5</span>))
-</code></pre><p>这个例子中，函数line与环境变量a,b构成闭包。在创建闭包的时候，我们通过line_conf的参数a,b说明了这两个环境变量的取值，这样，我们就确定了函数的最终形式(y = x + 1和y = 4x + 5)。我们只需要变换参数a,b，就可以获得不同的直线表达函数。由此，我们可以看到，闭包也具有提高代码可复用性的作用。<br>如果没有闭包，我们需要每次创建直线函数的时候同时说明a,b,x。这样，我们就需要更多的参数传递，也减少了代码的可移植性。利用闭包，我们实际上创建了泛函。line函数定义一种广泛意义的函数。这个函数的一些方面已经确定(必须是直线)，但另一些方面(比如a和b参数待定)。随后，我们根据line_conf传递来的参数，通过闭包的形式，将最终函数确定下来。</p>
-<h2 id="装饰器">装饰器</h2>
-<p>装饰器:<br>在函数调用前后自动打印日志，但又不希望修改now()函数的定义，这种在代码运行期间动态增加功能的方式，称之为“装饰器”（Decorator）。本质上，decorator就是一个返回函数的高阶函数。所以，我们要定义一个能打印日志的decorator.</p>
-<pre><code><span class="function"><span class="keyword">def</span> <span class="title">makebold</span><span class="params">(fn)</span>:</span>    
-    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
-        <span class="keyword">return</span> <span class="string">"&lt;b&gt;"</span> + fn() + <span class="string">"&lt;/b&gt;"</span>    
-    <span class="keyword">return</span> wrapped
-<span class="function"><span class="keyword">def</span> <span class="title">makeitalic</span><span class="params">(fn)</span>:</span>     
-    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
-        <span class="keyword">return</span> <span class="string">"&lt;i&gt;"</span> + fn() + <span class="string">"&lt;/i&gt;"</span>    
-    <span class="keyword">return</span> wrapped
+<p>图vfs_1：</p>
+<p><img src="/img/vfs_1.png" alt="vfs_1" width="800" height="400"> </p>
 
-<span class="decorator">@makebold</span>
-<span class="decorator">@makeitalic</span>
-    <span class="function"><span class="keyword">def</span> <span class="title">hello</span><span class="params">()</span>:</span>     
-        <span class="keyword">return</span> <span class="string">"hello world"</span>
-<span class="keyword">print</span> hello()
-</code></pre><p>执行结果：</p>
+
+<h2 id="文件系统几个数据结构">文件系统几个数据结构</h2>
+<p><img src="/img/vfs_2.png" alt="vfs_2" width="800" height="400"> </p>
+
+<h3 id="superblock">superblock</h3>
+<p>超级块，是文件系统最基本的元数据(data about data).<br>存储已挂载的文件系统信息，比如文件系统类型，大小，状态，挂载时间等。</p>
+<h3 id="inode_(i节点)">inode (i节点)</h3>
+<p>包含一个文件(在linux和unix系统里所有的物体都是文件，比如实际文件，目录，设备等)的元数据，比如文件的owner和group的读写执行权限和访问时间等。</p>
 <blockquote>
-<p><b><i>hello world</i></b></p>
+<p>inode中不存储文件的名字，每个inode有一个inode number(i节点号)，一个inode number能够唯一地标识一个文件。</p>
 </blockquote>
+<h3 id="dentry_(目录块)">dentry (目录块)</h3>
+<p>dentry结构存储目录项和对应文件（inode）的信息。</p>
+<blockquote>
+<p>目录就是文件，比如/bin/ls,bin和ls都是文件，bin是一个目录文件，ls是一个普通文件。</p>
+<p>两个不同的file结构可以对应同一个dentry结构。进程多次打开同一个文件时，对应的只有一个dentry结构。</p>
+</blockquote>
+<h3 id="file">file</h3>
+<p>进程每打开一个文件，就会有一个file结构与之对应。<br>同一个进程可以多次打开同一个文件而得到多个不同的file结构，file结构描述被打开文件的属性，如文件的当前偏移量等信息。</p>
+<p><img src="/img/vfs_3.png" alt="vfs_3" width="800" height="400"> </p>
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/Python/">Python</a>
+  <a class="article-category-link" href="/categories/kernel/">kernel</a>
 </div>
 
 
@@ -145,7 +152,7 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/27/python/2014-12-31-函数式编程/" data-title="Python--函数式编程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/01/29/kernel/vfs_init/" data-title="VFS-Virtual File System in Linux | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -155,18 +162,18 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/01/28/algorithm/avl/" title="avl-自平衡二叉查找树">
+ <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort">
   <strong>上一篇：</strong><br/>
   <span>
-  avl-自平衡二叉查找树</span>
+  Merge Sort</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"  title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册">
+<a href="/2015/01/29/algorithm/quicksort/"  title="Quick Sort">
  <strong>下一篇：</strong><br/> 
- <span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册
+ <span>Quick Sort
 </span>
 </a>
 </div>

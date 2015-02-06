@@ -64,6 +64,35 @@
 
   <section class="post" itemscope itemprop="blogPost">
     <div id="main-col" class="alignleft">
+    <time datetime="2015-01-21T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher" itemprop="url"  class="article-time">1月 21 2015</a>
+    </time>
+  <h1 itemprop="name" class="post-title">
+  
+    <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher" itemprop="url"><span>libev-signal watcher</span></a>
+  
+</h1>
+
+    
+     
+           <p itemprop="description" >signal watcher
+signal watcher是需要io watcher来完成的。
+
+signalwatcher通过evpipe_init来创建管道和iowatcher(管道的fd赋值给io watcher)，当收到某信号后ev_sighandler会调用并会往管道写...</p>
+        
+    
+
+    <div class="more-link">
+            <!-- <a href="/2015/01/21/libev/libev-watcher/" class="more-link"><span>Read More</span></a> -->
+      <div class="clearfix"></div>
+    </div>
+
+</div>
+</section>
+
+
+  <section class="post" itemscope itemprop="blogPost">
+    <div id="main-col" class="alignleft">
     <time datetime="2015-01-20T08:45:07.000Z" itemprop="datePublished">
       <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url"  class="article-time">1月 20 2015</a>
     </time>
@@ -156,7 +185,9 @@ f...</p>
 		
 			<li><a href="/categories/algorithm/" title="algorithm">algorithm<sup>4</sup></a></li>
 		
-			<li><a href="/categories/kernel/" title="kernel">kernel<sup>2</sup></a></li>
+			<li><a href="/categories/kernel/" title="kernel">kernel<sup>3</sup></a></li>
+		
+			<li><a href="/categories/kernel-2-6-18/" title="kernel-2.6.18">kernel-2.6.18<sup>0</sup></a></li>
 		
 			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
 		
