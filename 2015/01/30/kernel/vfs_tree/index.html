@@ -151,6 +151,7 @@ struct file_system_type {
 
 
 <h2 id="VFS根目录建立">VFS根目录建立</h2>
+<p>init_mount_tree() 函数会调用 do_kern_mount(“rootfs”, 0, “rootfs”, NULL) 来挂载前面已经注册了的 rootfs 文件系统。这看起来似乎有点奇怪，因为根据前面的说法，似乎是应该先有挂载目录，然后再在其上挂载相应的文件系统，然而此时 VFS 似乎并没有建立其根目录。没关系，这是因为这里我们调用的是 do_kern_mount()，这个函数内部自然会创建我们最关心也是最关键的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</p>
 <h3 id="命名空间">命名空间</h3>
 <p>每个进程可拥有自己的已安装文件树——叫做进程的命名空间（namespace）。<br>对于每一个进程都有自己的namespace，这可以理解为这个进程的地盘。在这里，所有的文件系统都要挂上来统一管理。<br>通常大多数进程共享一个命名空间，即位于系统的根文件系统且被init进程使用的已安装文件系统树。<br>不过如果clone()系统调用以CLONE_NEWNS标志创建一个新进程，那么进程将获取一个新的命名空间，这个新的命名空间随后由子进程继承（如果父进程没有以CLONE_NEWNS标志创建这些进程）。</p>
 <pre><code><span class="keyword">struct</span> <span class="class"><span class="keyword">namespace</span> </span>{
@@ -166,53 +167,58 @@ struct file_system_type {
 
 <h3 id="建立根目录">建立根目录</h3>
 <p>在初始化阶段是如何建立根结点的，即 “/“目录。这其中会包括挂载 rootfs 文件系统到根目录 “/“ 的具体过程。<br>构造根目录的代码是在 init_mount_tree函数中。</p>
-<pre><code><span class="keyword">static</span> <span class="keyword">void</span> __init init_mount_tree(<span class="keyword">void</span>)
-{
-    <span class="keyword">struct</span> vfsmount *mnt;
-    <span class="keyword">struct</span> <span class="keyword">namespace</span> *<span class="keyword">namespace</span>;
-    <span class="keyword">struct</span> task_struct *g, *p;
+<ol>
+<li><p>init_mount_tree()函数会调用do_kern_mount(“rootfs”, 0, “rootfs”, NULL)来挂载前面已经注册了的 rootfs 文件系统。</p>
+</li>
+<li><p>do_kern_mount()函数内部创建VFS的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</p>
+<p> static void __init init_mount_tree(void)<br> {</p>
+<pre><code> <span class="keyword">struct</span> vfsmount *mnt;
+ <span class="keyword">struct</span> <span class="keyword">namespace</span> *<span class="keyword">namespace</span>;
+ <span class="keyword">struct</span> task_struct *g, *p;
 
-    <span class="comment">//do_kern_mount函数主要作用：</span>
-    <span class="comment">//1.在内存里申请了一块该类型的内存空间（struct vfsmount *mnt），并初始化其部分成员变量</span>
-    <span class="comment">//2.调用rootfs-&gt;get_sb_nodev函数在内存中分配一个超级块结构 (struct super_block) sb，</span>
-    <span class="comment">//  并初始化其部分成员变量,将成员s_instances插入到rootfs中的fs_supers指向的双向链表中</span>
-    <span class="comment">//3.调用rootfs-&gt;get_sb_nodev-&gt;fill_super-&gt;simple_fill_super函数:</span>
-    <span class="comment">//  在内存中分配了一个inode (struct inode) ，并初始化其部分成员变量（i_op、i_fop等)</span>
-    <span class="comment">//  还有生成根目录dentry。root = d_alloc_root(inode);</span>
-    mnt = do_kern_mount(<span class="string">"rootfs"</span>, <span class="number">0</span>, <span class="string">"rootfs"</span>, NULL);
-    <span class="keyword">if</span> (IS_ERR(mnt))
-        panic(<span class="string">"Can't create rootfs"</span>);
-    <span class="comment">//在内存里申请命名空间</span>
-    <span class="keyword">namespace</span> = kmalloc(<span class="keyword">sizeof</span>(*<span class="keyword">namespace</span>), GFP_KERNEL);
-    <span class="keyword">if</span> (!<span class="keyword">namespace</span>)
-        panic(<span class="string">"Can't allocate initial namespace"</span>);
-    atomic_set(&amp;<span class="keyword">namespace</span>-&gt;count, <span class="number">1</span>);
-    INIT_LIST_HEAD(&amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
-    init_waitqueue_head(&amp;<span class="keyword">namespace</span>-&gt;poll);
-    <span class="keyword">namespace</span>-&gt;event = <span class="number">0</span>;
-    <span class="comment">//如上图vfs_tree_1所示，把mnt_list挂在到namespace-&gt;list上</span>
-    list_add(&amp;mnt-&gt;mnt_list, &amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
-    <span class="keyword">namespace</span>-&gt;root = mnt;
-    mnt-&gt;mnt_namespace = <span class="keyword">namespace</span>;
+ <span class="comment">//do_kern_mount函数主要作用：</span>
+ <span class="comment">//1.在内存里申请了一块该类型的内存空间（struct vfsmount *mnt），并初始化其部分成员变量</span>
+ <span class="comment">//2.调用rootfs-&gt;get_sb_nodev函数在内存中分配一个超级块结构 (struct super_block) sb，</span>
+ <span class="comment">//  并初始化其部分成员变量,将成员s_instances插入到rootfs中的fs_supers指向的双向链表中</span>
+ <span class="comment">//3.调用rootfs-&gt;get_sb_nodev-&gt;fill_super-&gt;simple_fill_super函数:</span>
+ <span class="comment">//  在内存中分配了一个inode (struct inode) ，并初始化其部分成员变量（i_op、i_fop等)</span>
+ <span class="comment">//  还有生成根目录dentry。root = d_alloc_root(inode);</span>
+ mnt = do_kern_mount(<span class="string">"rootfs"</span>, <span class="number">0</span>, <span class="string">"rootfs"</span>, NULL);
+ <span class="keyword">if</span> (IS_ERR(mnt))
+     panic(<span class="string">"Can't create rootfs"</span>);
+ <span class="comment">//在内存里申请命名空间</span>
+ <span class="keyword">namespace</span> = kmalloc(<span class="keyword">sizeof</span>(*<span class="keyword">namespace</span>), GFP_KERNEL);
+ <span class="keyword">if</span> (!<span class="keyword">namespace</span>)
+     panic(<span class="string">"Can't allocate initial namespace"</span>);
+ atomic_set(&amp;<span class="keyword">namespace</span>-&gt;count, <span class="number">1</span>);
+ INIT_LIST_HEAD(&amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+ init_waitqueue_head(&amp;<span class="keyword">namespace</span>-&gt;poll);
+ <span class="keyword">namespace</span>-&gt;event = <span class="number">0</span>;
+ <span class="comment">//如上图vfs_tree_1所示，把mnt_list挂在到namespace-&gt;list上</span>
+ list_add(&amp;mnt-&gt;mnt_list, &amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+ <span class="keyword">namespace</span>-&gt;root = mnt;
+ mnt-&gt;mnt_namespace = <span class="keyword">namespace</span>;
 
-    <span class="comment">//为系统最开始的进程(即init_task进程)准备它的进程数据块中的namespace</span>
-    <span class="comment">//将mnt和dentry信息记录在了init_task进程的进程数据块中，</span>
-    <span class="comment">//这样所有以后从init_task进程fork出来的进程也都先天地继承了这一信息</span>
-    init_task.<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
-    read_lock(&amp;tasklist_lock);
-    do_each_thread(g, p) {
-        get_namespace(<span class="keyword">namespace</span>);
-        p-&gt;<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
-    } while_each_thread(g, p);
-    read_unlock(&amp;tasklist_lock);
+ <span class="comment">//为系统最开始的进程(即init_task进程)准备它的进程数据块中的namespace</span>
+ <span class="comment">//将mnt和dentry信息记录在了init_task进程的进程数据块中，</span>
+ <span class="comment">//这样所有以后从init_task进程fork出来的进程也都先天地继承了这一信息</span>
+ init_task.<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+ read_lock(&amp;tasklist_lock);
+ do_each_thread(g, p) {
+     get_namespace(<span class="keyword">namespace</span>);
+     p-&gt;<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+ } while_each_thread(g, p);
+ read_unlock(&amp;tasklist_lock);
 
-    <span class="comment">//下面两行就是把mnt和dentry信息记录在了当前进程的 fs结构中</span>
-    <span class="comment">//namespace-&gt;root指向roofs的vfsmount</span>
-    <span class="comment">//namespace-&gt;root-&gt;mnt_root指向根目录dentry</span>
-    set_fs_pwd(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
-    set_fs_root(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
-}
-</code></pre><p>函数init_mount_tree调用完毕后，结构如下图：</p>
+ <span class="comment">//下面两行就是把mnt和dentry信息记录在了当前进程的 fs结构中</span>
+ <span class="comment">//namespace-&gt;root指向roofs的vfsmount</span>
+ <span class="comment">//namespace-&gt;root-&gt;mnt_root指向根目录dentry</span>
+ set_fs_pwd(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+ set_fs_root(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+</code></pre><p> }</p>
+</li>
+</ol>
+<p>函数init_mount_tree调用完毕后，结构如下图：</p>
 <p><img src="/img/vfs_tree_3.gif" alt="vfs_tree_3" width="800" height="400"> </p>
 
 
