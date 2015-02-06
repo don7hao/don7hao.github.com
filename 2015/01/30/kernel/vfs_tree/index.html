@@ -221,7 +221,7 @@ struct file_system_type {
 <p><img src="/img/vfs_tree_3.gif" alt="vfs_tree_3" width="800" height="400"> </p>
 
 
-
+<p>一旦VFS目录树建立，就可以通过系统调用sys_mkdir在这棵树上建立新的叶子节点等。<br>VFS目录树中各目录的主要用途是为以后挂载文件系统提供挂载点，所以将rootfs文件系统挂载到了这棵树的根目录上，而真正的文件操作还是要通过挂载后的文件系统提供的功能接口来进行。</p>
 <p>参考文档：</p>
 <ol>
 <li><a href="http://www.ibm.com/developerworks/cn/linux/l-vfs/" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/linux/l-vfs/</a></li>
