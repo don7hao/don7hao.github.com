@@ -4,25 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Merge Sort | don7hao&#39;s blog</title>
+    <title>Python--函数式编程 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="​归并排序
-归并排序有两种实现方式：自底向上和自顶向下
-自底向上
- 
-
-
-自底向上的基本思想
-第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成">
+    <meta name="description" itemprop="description" content="匿名函数/闭包/装饰器">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Merge Sort | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="Python--函数式编程 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="匿名函数/闭包/装饰器" />
       
     
     
@@ -71,13 +66,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url" class="article-time">1月 30 2015</a>
+    <time datetime="2015-02-05T09:19:52.000Z" itemprop="datePublished">
+      <a href="/2015/02/05/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url" class="article-time">2月 5 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url"><span>Merge Sort</span></a>
+      <a href="/2015/02/05/python/2014-12-31-函数式编程/" title="Python--函数式编程" itemprop="url"><span>Python--函数式编程</span></a>
   </h1>
 </header>
 
@@ -87,46 +82,63 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#​归并排序"><span class="toc-number">1.</span> <span class="toc-text">​归并排序</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#自底向上"><span class="toc-number">1.1.</span> <span class="toc-text">自底向上</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自底向上的基本思想"><span class="toc-number">1.1.1.</span> <span class="toc-text">自底向上的基本思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">1.1.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自顶向下"><span class="toc-number">1.2.</span> <span class="toc-text">自顶向下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自顶向下的基本思想:"><span class="toc-number">1.2.1.</span> <span class="toc-text">自顶向下的基本思想:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#算法分析"><span class="toc-number">1.3.</span> <span class="toc-text">算法分析</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#什么是函数式编程"><span class="toc-number">1.</span> <span class="toc-text">什么是函数式编程</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#匿名函数"><span class="toc-number">1.1.</span> <span class="toc-text">匿名函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#闭包"><span class="toc-number">1.2.</span> <span class="toc-text">闭包</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#装饰器"><span class="toc-number">1.3.</span> <span class="toc-text">装饰器</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<h1 id="​归并排序">​归并排序</h1>
-<p>归并排序有两种实现方式：自底向上和自顶向下</p>
-<h2 id="自底向上">自底向上</h2>
-<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
-
-
-<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
-<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；</p>
-<p>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
-<h3 id="代码">代码</h3>
+		<h1 id="什么是函数式编程">什么是函数式编程</h1>
+<p>函数式编程就是一种抽象程度很高的编程范式，纯粹的函数式编程语言编写的函数没有变量，因此，任意一个函数，只要输入是确定的，输出就是确定的，这种纯函数我们称之为没有副作用。而允许使用变量的程序设计语言，由于函数内部的变量状态不确定，同样的输入，可能得到不同的输出，因此，这种函数是有副作用的。<br>函数式编程的一个特点就是，允许把函数本身作为参数传入另一个函数，还允许返回一个函数！<br>把函数作为参数传入，或者把函数作为返回值返回，这样的函数称为高阶函数，函数式编程就是指这种高度抽象的编程范式。</p>
+<h2 id="匿名函数">匿名函数</h2>
+<p>关键字lambda表示匿名函数，冒号前面的x表示函数参数。<br>匿名函数有个限制，就是只能有一个表达式，不用写return，返回值就是该表达式的结果。<br>用匿名函数有个好处，因为函数没有名字，不必担心函数名冲突。匿名函数也是一个函数对象，也可以把匿名函数赋值给一个变量，再利用变量来调用该函数：</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">prod</span><span class="params">(x,y)</span>:</span>
+    <span class="keyword">return</span> <span class="keyword">lambda</span> x,y:x*y
+</code></pre><h2 id="闭包">闭包</h2>
+<p>闭包就是根据不同的配置信息得到不同的结果<br>再来看看专业的解释:闭包（Closure）是词法闭包（Lexical Closure）的简称，是引用了自由变量的函数。这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外。所以，有另一种说法认为闭包是由函数和与其相关的引用环境组合而成的实体。<br>通俗的讲就是：如果在一个内部函数里，对在外部作用域（但不是在全局作用域）的变量进行引用，那么内部函数就被认为是闭包（closure）。它只不过是个“内层”的函数，由一个名字（变量）来指代，而这个名字（变量）对于“外层”包含它的函数而言，是本地变量。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">make_adder</span><span class="params">(addend)</span>:</span>    
+    <span class="function"><span class="keyword">def</span> <span class="title">adder</span><span class="params">(augend)</span>:</span>        
+        <span class="keyword">return</span> augend + addend   
+    <span class="keyword">return</span> adder 
+p = make_adder(<span class="number">23</span>) 
+q = make_adder(<span class="number">44</span>)
+<span class="keyword">print</span> p(<span class="number">100</span>)
+<span class="keyword">print</span> q(<span class="number">100</span>)
+</code></pre><p>执行结果：</p>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p>123</p>
+<p>144</p>
 </blockquote>
-<h2 id="自顶向下">自顶向下</h2>
-<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
-<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
+<p>代码二：<br>    def line_conf(a, b):<br>        def line(x):<br>            return ax + b<br>        return line</p>
+<pre><code><span class="variable">line1 =</span> line_conf(<span class="number">1</span>, <span class="number">1</span>)
+<span class="variable">line2 =</span> line_conf(<span class="number">4</span>, <span class="number">5</span>)
+print(line1(<span class="number">5</span>), line2(<span class="number">5</span>))
+</code></pre><p>这个例子中，函数line与环境变量a,b构成闭包。在创建闭包的时候，我们通过line_conf的参数a,b说明了这两个环境变量的取值，这样，我们就确定了函数的最终形式(y = x + 1和y = 4x + 5)。我们只需要变换参数a,b，就可以获得不同的直线表达函数。由此，我们可以看到，闭包也具有提高代码可复用性的作用。<br>如果没有闭包，我们需要每次创建直线函数的时候同时说明a,b,x。这样，我们就需要更多的参数传递，也减少了代码的可移植性。利用闭包，我们实际上创建了泛函。line函数定义一种广泛意义的函数。这个函数的一些方面已经确定(必须是直线)，但另一些方面(比如a和b参数待定)。随后，我们根据line_conf传递来的参数，通过闭包的形式，将最终函数确定下来。</p>
+<h2 id="装饰器">装饰器</h2>
+<p>装饰器:<br>在函数调用前后自动打印日志，但又不希望修改now()函数的定义，这种在代码运行期间动态增加功能的方式，称之为“装饰器”（Decorator）。本质上，decorator就是一个返回函数的高阶函数。所以，我们要定义一个能打印日志的decorator.</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">makebold</span><span class="params">(fn)</span>:</span>    
+    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
+        <span class="keyword">return</span> <span class="string">"&lt;b&gt;"</span> + fn() + <span class="string">"&lt;/b&gt;"</span>    
+    <span class="keyword">return</span> wrapped
+<span class="function"><span class="keyword">def</span> <span class="title">makeitalic</span><span class="params">(fn)</span>:</span>     
+    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
+        <span class="keyword">return</span> <span class="string">"&lt;i&gt;"</span> + fn() + <span class="string">"&lt;/i&gt;"</span>    
+    <span class="keyword">return</span> wrapped
 
-
-<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
-<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
-<h3 id="代码-1">代码</h3>
+<span class="decorator">@makebold</span>
+<span class="decorator">@makeitalic</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">hello</span><span class="params">()</span>:</span>     
+        <span class="keyword">return</span> <span class="string">"hello world"</span>
+<span class="keyword">print</span> hello()
+</code></pre><p>执行结果：</p>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p><b><i>hello world</i></b></p>
 </blockquote>
-<h2 id="算法分析">算法分析</h2>
-<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
-<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
-<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
-<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
+  <a class="article-category-link" href="/categories/Python/">Python</a>
 </div>
 
 
@@ -135,7 +147,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/" data-title="Merge Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/02/05/python/2014-12-31-函数式编程/" data-title="Python--函数式编程 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -145,18 +157,18 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统">
+ <a href="/2015/02/05/python/2014-12-31-协程/" title="Python--协程">
   <strong>上一篇：</strong><br/>
   <span>
-  ramfs文件系统</span>
+  Python--协程</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/30/kernel/vfs_tree/"  title="VFS目录树">
+<a href="/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"  title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册">
  <strong>下一篇：</strong><br/> 
- <span>VFS目录树
+ <span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册
 </span>
 </a>
 </div>

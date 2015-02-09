@@ -4,25 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Merge Sort | don7hao&#39;s blog</title>
+    <title>Nginx--进程间的消息传递 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="​归并排序
-归并排序有两种实现方式：自底向上和自顶向下
-自底向上
- 
-
-
-自底向上的基本思想
-第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成">
+    <meta name="description" itemprop="description" content="进程间消息传递 nginx">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Merge Sort | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="Nginx--进程间的消息传递 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="进程间消息传递 nginx" />
       
     
     
@@ -71,13 +66,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url" class="article-time">1月 30 2015</a>
+    <time datetime="2015-02-05T09:19:52.000Z" itemprop="datePublished">
+      <a href="/2015/02/05/nginx/2015-01-04-nginx-ipc/" title="Nginx--进程间的消息传递" itemprop="url" class="article-time">2月 5 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url"><span>Merge Sort</span></a>
+      <a href="/2015/02/05/nginx/2015-01-04-nginx-ipc/" title="Nginx--进程间的消息传递" itemprop="url"><span>Nginx--进程间的消息传递</span></a>
   </h1>
 </header>
 
@@ -87,46 +82,149 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#​归并排序"><span class="toc-number">1.</span> <span class="toc-text">​归并排序</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#自底向上"><span class="toc-number">1.1.</span> <span class="toc-text">自底向上</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自底向上的基本思想"><span class="toc-number">1.1.1.</span> <span class="toc-text">自底向上的基本思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">1.1.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自顶向下"><span class="toc-number">1.2.</span> <span class="toc-text">自顶向下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自顶向下的基本思想:"><span class="toc-number">1.2.1.</span> <span class="toc-text">自顶向下的基本思想:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#算法分析"><span class="toc-number">1.3.</span> <span class="toc-text">算法分析</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#进程间的消息传递"><span class="toc-number">1.</span> <span class="toc-text">进程间的消息传递</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#N个worker子进程如何知道彼此信息的？"><span class="toc-number">2.</span> <span class="toc-text">N个worker子进程如何知道彼此信息的？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#父进程创建子进程"><span class="toc-number">2.1.</span> <span class="toc-text">父进程创建子进程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#传递新子进程信息给存活的子进程"><span class="toc-number">2.2.</span> <span class="toc-text">传递新子进程信息给存活的子进程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#存活的子进程接受消息"><span class="toc-number">2.3.</span> <span class="toc-text">存活的子进程接受消息</span></a></li></ol></li></ol>
 		
 		</div>
 		
-		<h1 id="​归并排序">​归并排序</h1>
-<p>归并排序有两种实现方式：自底向上和自顶向下</p>
-<h2 id="自底向上">自底向上</h2>
-<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
-
-
-<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
-<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；</p>
-<p>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
-<h3 id="代码">代码</h3>
+		<h2 id="进程间的消息传递">进程间的消息传递</h2>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p>nginx在多进程模型中主要使用socketpair机制来实现进程间的消息传递。<br>ngx_spawn_process函数中初始化socketpair</p>
 </blockquote>
-<h2 id="自顶向下">自顶向下</h2>
-<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
-<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
-
-
-<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
-<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
-<h3 id="代码-1">代码</h3>
+<pre><code>{
+    <span class="keyword">if</span> (<span class="keyword">socketpair</span>(AF_UNIX, SOCK_STREAM, <span class="number">0</span>, ngx_processes[<span class="keyword">s</span>].channel) == -<span class="number">1</span>)
+    {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="keyword">log</span>, ngx_errno,
+                      <span class="string">"socketpair() failed while spawning \"<span class="variable">%s</span>\""</span>, name);
+        <span class="keyword">return</span> NGX_INVALID_PID;
+    }
+}
+</code></pre><h2 id="N个worker子进程如何知道彼此信息的？">N个worker子进程如何知道彼此信息的？</h2>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p>每个进程都维护着一张ngx_processes 是全局的进程表，用来保存存活的子进程信息。</p>
+<p>进程通过ngx_processes获取子进程pid和流管道句柄，实现进程间消息传递</p>
 </blockquote>
-<h2 id="算法分析">算法分析</h2>
-<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
-<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
-<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
-<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
-  
+<pre><code><span class="tag">ngx_process_t</span>    <span class="tag">ngx_processes</span><span class="attr_selector">[NGX_MAX_PROCESSES]</span>;
+</code></pre><blockquote>
+<p>ngx_process_t的结构体定义</p>
+</blockquote>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    ngx_pid_t           pid;
+    <span class="comment">/* 进程的退出状态(主要在waitpid中进行处理) */</span>
+    <span class="keyword">int</span>                 status;
+    <span class="comment">/* 进程channel(也就是通过socketpair创建的两个句柄) */</span>
+    ngx_socket_t        channel[<span class="number">2</span>];
+
+    <span class="comment">/* 进程的执行函数（也就是每次spawn，子进程所要执行的那个函数). */</span>
+    ngx_spawn_proc_pt   proc;
+    <span class="keyword">void</span>               *data;
+    <span class="keyword">char</span>               *name;
+
+    <span class="comment">/* 进程的几个状态 */</span>
+    <span class="keyword">unsigned</span>            respawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            just_spawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            detached:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exiting:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exited:<span class="number">1</span>;
+} ngx_process_t;
+</code></pre><h3 id="父进程创建子进程">父进程创建子进程</h3>
+<blockquote>
+<p>父进程调用ngx_start_work_processes函数中，并循环调用ngx_spawn_process函数生成N个worker的子进程,更新ngx_processes进程表</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) {
+    ngx_spawn_process(cycle, ngx_worker_process_cycle, 
+            (<span class="keyword">void</span> *) (intptr_t) i, <span class="string">"worker process"</span>, <span class="class"><span class="keyword">type</span>);</span>
+}
+</code></pre><blockquote>
+<p>父进程每调用一次ngx_spawn_process函数后，将新fork的子进程pid和流管道的句柄channel[0]复制给ch变量(ngx_channel_t)，</p>
+<p>然后调用ngx_pass_open_channel函数把ch消息传递给之前创建的子进程。</p>
+</blockquote>
+<pre><code>{
+    <span class="number">ch</span>.command = NGX_CMD_OPEN_CHANNEL<span class="comment">;</span>
+    <span class="number">ch</span>.pid = ngx_processes[ngx_process_slot]<span class="string">.pid</span><span class="comment">;</span>
+    <span class="number">ch</span>.slot = ngx_process_slot<span class="comment">;</span>
+    <span class="number">ch</span>.fd = ngx_processes[ngx_process_slot]<span class="string">.channel</span>[<span class="number">0</span>]<span class="comment">;</span>
+
+    ngx_pass_open_channel(cycle, &amp;<span class="number">ch</span>)<span class="comment">;</span>
+}
+</code></pre><h3 id="传递新子进程信息给存活的子进程">传递新子进程信息给存活的子进程</h3>
+<blockquote>
+<p>进程间消息格式定义ngx_channel_t结构体，其定义</p>
+</blockquote>
+<pre><code>typedef struct {
+    /<span class="keyword">*</span> 对端将接受到的命令 <span class="keyword">*</span>/
+     ngx_uint_t  command;
+     /<span class="keyword">*</span> 进程id <span class="keyword">*</span>/
+     ngx_pid_t   pid;
+     /<span class="keyword">*</span> 在全局ngx_processess数组中的位置 <span class="keyword">*</span>/
+     ngx_int_t   slot;
+     /<span class="keyword">*</span> 传递的fd <span class="keyword">*</span>/
+     ngx_fd_t    fd;
+} ngx_channel_t;
+</code></pre><blockquote>
+<p>父进程调用ngx_pass_open_channel函数遍历ngx_processes进程表找到存活的子进程们并发送消息(ngx_channel_t)给他们</p>
+</blockquote>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
+{
+    ngx_int_t  i;
+
+    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ngx_last_process; i++) {
+
+        <span class="keyword">if</span> (i == ngx_process_slot
+            || ngx_processes[i].pid == -<span class="number">1</span>
+            || ngx_processes[i].channel[<span class="number">0</span>] == -<span class="number">1</span>)
+        {
+            <span class="keyword">continue</span>;
+        }
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="comment">/* TODO: NGX_AGAIN */</span>
+        <span class="comment">/* 把ch的信息发给前面的子进程们 */</span>
+        ngx_write_channel(ngx_processes[i].channel[<span class="number">0</span>],
+                          ch, <span class="keyword">sizeof</span>(ngx_channel_t), cycle-&gt;<span class="built_in">log</span>);
+    }
+}
+</code></pre><h3 id="存活的子进程接受消息">存活的子进程接受消息</h3>
+<blockquote>
+<p>存活的子进程调用ngx_channel_handle函数（管道可读事件捕捉函数），读取消息并解析成ngx_channel_t，并根据command做相应的处理.</p>
+<p>在ngx_start_work_processes函数中已知ch.command = NGX_CMD_OPEN_CHANNEL;</p>
+<p>存活的子进程收到信息更新自己的ngx_processes进程表，子进程就得到新创建的子进程的信息，子进程间就可以通信。</p>
+</blockquote>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_channel_handler(ngx_event_t *ev)
+{
+    ngx_int_t          n;
+    ngx_channel_t      ch;
+    ngx_connection_t  *c;
+
+    <span class="comment">/* 去掉部分代码 */</span>
+    <span class="keyword">for</span> ( ;; ) {
+        n = ngx_read_channel(c-&gt;fd, &amp;ch, <span class="keyword">sizeof</span>(ngx_channel_t), ev-&gt;<span class="built_in">log</span>);
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">switch</span> (ch.command) {
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">case</span> NGX_CMD_OPEN_CHANNEL:
+         <span class="comment">/* 进程更新自己的ngx_processes进程表，记录其他子进程的相关信息 */</span>
+            ngx_processes[ch.slot].pid = ch.pid;
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = ch.fd;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> NGX_CMD_CLOSE_CHANNEL:
+
+            <span class="keyword">if</span> (close(ngx_processes[ch.slot].channel[<span class="number">0</span>]) == -<span class="number">1</span>) {
+                ngx_log_error(NGX_LOG_ALERT, ev-&gt;<span class="built_in">log</span>, ngx_errno,
+                              <span class="string">"close() channel failed"</span>);
+            }
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = -<span class="number">1</span>;
+            <span class="keyword">break</span>;
+        }
+    }
+}
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
+  <a class="article-category-link" href="/categories/Nginx/">Nginx</a>
 </div>
 
 
@@ -135,7 +233,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/" data-title="Merge Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-ipc/" data-title="Nginx--进程间的消息传递 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -145,18 +243,18 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统">
+ <a href="/2015/02/05/nginx/2015-01-05-nginx-master-handle-signal/" title="Nginx--master进程的信号处理">
   <strong>上一篇：</strong><br/>
   <span>
-  ramfs文件系统</span>
+  Nginx--master进程的信号处理</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/30/kernel/vfs_tree/"  title="VFS目录树">
+<a href="/2015/02/05/nginx/2015-01-04-nginx-init-signal/"  title="Nginx--信号">
  <strong>下一篇：</strong><br/> 
- <span>VFS目录树
+ <span>Nginx--信号
 </span>
 </a>
 </div>

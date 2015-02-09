@@ -4,25 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Merge Sort | don7hao&#39;s blog</title>
+    <title>Nginx--FIOASYNC | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="​归并排序
-归并排序有两种实现方式：自底向上和自顶向下
-自底向上
- 
-
-
-自底向上的基本思想
-第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成">
+    <meta name="description" itemprop="description" content="fioasync nginx">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Merge Sort | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="Nginx--FIOASYNC | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="fioasync nginx" />
       
     
     
@@ -71,13 +66,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url" class="article-time">1月 30 2015</a>
+    <time datetime="2015-02-05T09:19:52.000Z" itemprop="datePublished">
+      <a href="/2015/02/05/nginx/2015-01-04-nginx-fioasync/" title="Nginx--FIOASYNC" itemprop="url" class="article-time">2月 5 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url"><span>Merge Sort</span></a>
+      <a href="/2015/02/05/nginx/2015-01-04-nginx-fioasync/" title="Nginx--FIOASYNC" itemprop="url"><span>Nginx--FIOASYNC</span></a>
   </h1>
 </header>
 
@@ -87,46 +82,49 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#​归并排序"><span class="toc-number">1.</span> <span class="toc-text">​归并排序</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#自底向上"><span class="toc-number">1.1.</span> <span class="toc-text">自底向上</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自底向上的基本思想"><span class="toc-number">1.1.1.</span> <span class="toc-text">自底向上的基本思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">1.1.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自顶向下"><span class="toc-number">1.2.</span> <span class="toc-text">自顶向下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自顶向下的基本思想:"><span class="toc-number">1.2.1.</span> <span class="toc-text">自顶向下的基本思想:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#算法分析"><span class="toc-number">1.3.</span> <span class="toc-text">算法分析</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#FIOASYNC"><span class="toc-number">1.</span> <span class="toc-text">FIOASYNC</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#WHEN_DO_WE_USE_FIOASYNC"><span class="toc-number">2.</span> <span class="toc-text">WHEN DO WE USE FIOASYNC</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#HOWTO_USE_FIOASYNC"><span class="toc-number">3.</span> <span class="toc-text">HOWTO USE FIOASYNC</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="​归并排序">​归并排序</h1>
-<p>归并排序有两种实现方式：自底向上和自顶向下</p>
-<h2 id="自底向上">自底向上</h2>
-<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
-
-
-<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
-<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；</p>
-<p>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
-<h3 id="代码">代码</h3>
-<blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+		<blockquote>
+<p>ngx_spawn_process函数中设置信号驱动异步I/O标志,它决定是否收取针对本套接口的异步I/O<br>信号(SIGIO).</p>
 </blockquote>
-<h2 id="自顶向下">自顶向下</h2>
-<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
-<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
+<pre><code>{
+    <span class="function_start"><span class="keyword">on</span></span> = <span class="number">1</span>;
+    <span class="keyword">if</span> (ioctl(ngx_processes[s].channel[<span class="number">0</span>], FIOASYNC, &amp;<span class="function_start"><span class="keyword">on</span></span>) == -<span class="number">1</span>) {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="command">log</span>, ngx_errno,
+                      <span class="string">"ioctl(FIOASYNC) failed while spawning \"%s\""</span>, <span class="property">name</span>);
+        ngx_close_channel(ngx_processes[s].channel, cycle-&gt;<span class="command">log</span>);
+<span class="command">        return</span> NGX_INVALID_PID;
+    }
 
-
-<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
-<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
-<h3 id="代码-1">代码</h3>
-<blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
-</blockquote>
-<h2 id="算法分析">算法分析</h2>
-<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
-<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
-<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
-<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
+    <span class="keyword">if</span> (fcntl(ngx_processes[s].channel[<span class="number">0</span>], F_SETOWN, ngx_pid) == -<span class="number">1</span>) {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="command">log</span>, ngx_errno,
+                      <span class="string">"fcntl(F_SETOWN) failed while spawning \"%s\""</span>, <span class="property">name</span>);
+        ngx_close_channel(ngx_processes[s].channel, cycle-&gt;<span class="command">log</span>);
+<span class="command">        return</span> NGX_INVALID_PID;
+    }
+}
+</code></pre><h2 id="FIOASYNC">FIOASYNC</h2>
+<p>FIOASYNC Enables a simple form of asynchronous I/O notification.<br>This command causes the kernel to send SIGIO signal to a process or a process group when I/O is possible.<br>Only sockets, ttys, and pseudo-ttys implement this functionality.</p>
+<h2 id="WHEN_DO_WE_USE_FIOASYNC">WHEN DO WE USE FIOASYNC</h2>
+<p>Let’s imagine a process that executes a long computational loop at low priority but needs to process incoming data as soon as possible.<br>If this process is responding to new observations available from some sort of data acquisition peripheral, it would like to know immediately when new data is available.<br>This application could be written to call poll regularly to check for data, but, for many situations, there is a better way.<br><strong>By enabling asynchronous notification, this application can receive a signal<br>whenever data becomes available</strong> and need not concern itself with polling.</p>
+<h2 id="HOWTO_USE_FIOASYNC">HOWTO USE FIOASYNC</h2>
+<p>User programs have to execute <strong>two steps</strong> to enable asynchronous notification from an input file.<br>First, they specify a process as the “owner” of the file.<br>When a process invokes the <em>F_SETOWN</em> command using the fcntl system call, the process ID of the owner process is saved in filp-&gt;f_owner for later use.<br>This step is necessary for the kernel to know just whom to notify.</p>
+<pre><code><span class="function"><span class="title">fcntl</span><span class="params">(fd, <span class="variable">F_SETOWN</span>, process_id)</span></span>
+</code></pre><p>In order to actually enable asynchronous notification, the user programs must<br>set the <strong>FASYNC flag</strong> in the device by means of the F_SETFL fcntl command as<br>blow:</p>
+<pre><code>oflags = <span class="keyword">fcntl</span>(STDIN_FILENO, F_GETFL);
+<span class="keyword">fcntl</span>(STDIN_FILENO, F_SETFL, oflags | FASYNC);
+</code></pre><p>or call ioctl function as blow:</p>
+<pre><code>int <span class="function_start"><span class="keyword">on</span></span> = <span class="number">1</span>;ioctl(fd, FIOASYNC, &amp;<span class="function_start"><span class="keyword">on</span></span>)
+</code></pre><p>After these two calls have been executed, the input file can request delivery of a SIGIO signal whenever new data arrives.<br>The signal is sent to the process (or process group, if the value is negative) stored in filp-&gt;f_owner.</p>
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
+  <a class="article-category-link" href="/categories/Nginx/">Nginx</a>
 </div>
 
 
@@ -135,7 +133,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/" data-title="Merge Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-fioasync/" data-title="Nginx--FIOASYNC | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -144,19 +142,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统">
-  <strong>上一篇：</strong><br/>
-  <span>
-  ramfs文件系统</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/30/kernel/vfs_tree/"  title="VFS目录树">
+<a href="/2015/02/05/tcp_ip_arch/2015-01-07-socket-inet_create/"  title="TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字">
  <strong>下一篇：</strong><br/> 
- <span>VFS目录树
+ <span>TCP/IP--&gt;Socket--&gt;创建PF_INET协议族的套接字
 </span>
 </a>
 </div>

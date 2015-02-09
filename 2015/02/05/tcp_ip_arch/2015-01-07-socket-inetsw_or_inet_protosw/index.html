@@ -4,25 +4,20 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>Merge Sort | don7hao&#39;s blog</title>
+    <title>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="​归并排序
-归并排序有两种实现方式：自底向上和自顶向下
-自底向上
- 
-
-
-自底向上的基本思想
-第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成">
+    <meta name="description" itemprop="description" content="inetsw struct inet_protosw">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="Merge Sort | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" />
+      
+        <meta name="twitter:description" content="inetsw struct inet_protosw" />
       
     
     
@@ -71,13 +66,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-30T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url" class="article-time">1月 30 2015</a>
+    <time datetime="2015-02-05T09:19:52.000Z" itemprop="datePublished">
+      <a href="/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url" class="article-time">2月 5 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/30/algorithm/merge_sort/" title="Merge Sort" itemprop="url"><span>Merge Sort</span></a>
+      <a href="/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册" itemprop="url"><span>TCP/IP--&gt;Socket--&gt;PF_INET协议族注册</span></a>
   </h1>
 </header>
 
@@ -87,46 +82,154 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#​归并排序"><span class="toc-number">1.</span> <span class="toc-text">​归并排序</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#自底向上"><span class="toc-number">1.1.</span> <span class="toc-text">自底向上</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自底向上的基本思想"><span class="toc-number">1.1.1.</span> <span class="toc-text">自底向上的基本思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">1.1.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#自顶向下"><span class="toc-number">1.2.</span> <span class="toc-text">自顶向下</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#自顶向下的基本思想:"><span class="toc-number">1.2.1.</span> <span class="toc-text">自顶向下的基本思想:</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代码-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#算法分析"><span class="toc-number">1.3.</span> <span class="toc-text">算法分析</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw结构体"><span class="toc-number">1.</span> <span class="toc-text">inetsw结构体</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#inetsw_array结构体"><span class="toc-number">2.</span> <span class="toc-text">inetsw_array结构体</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="​归并排序">​归并排序</h1>
-<p>归并排序有两种实现方式：自底向上和自顶向下</p>
-<h2 id="自底向上">自底向上</h2>
-<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
-
-
-<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
-<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；</p>
-<p>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
-<h3 id="代码">代码</h3>
+		<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
 </blockquote>
-<h2 id="自顶向下">自顶向下</h2>
-<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
-<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
+<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
+<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
+<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
+<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
+<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
+<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
+<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
+<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+};
 
+#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
 
-<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
-<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
-<h3 id="代码-1">代码</h3>
+static struct list_head inetsw[SOCK_MAX];
+</code></pre><blockquote>
+<p>inetsw在inet_init函数中初始化</p>
+</blockquote>
+<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
+<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
+    INIT_LIST_HEAD(r);
+</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
 <blockquote>
-<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
 </blockquote>
-<h2 id="算法分析">算法分析</h2>
-<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
-<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
-<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
-<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
-  
+<pre><code>static struct inet_protosw inetsw_array[] =
+{
+        {
+                .<span class="variable">type =</span>       SOCK_STREAM,
+                .<span class="variable">protocol =</span>   IPPROTO_TCP,
+                .<span class="variable">prot =</span>       &amp;tcp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   <span class="number">0</span>,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+                  INET_PROTOSW_ICSK,
+        },
+
+        {
+                .<span class="variable">type =</span>       SOCK_DGRAM,
+                .<span class="variable">protocol =</span>   IPPROTO_UDP,
+                .<span class="variable">prot =</span>       &amp;udp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
+       },
+
+
+       {
+               .<span class="variable">type =</span>       SOCK_RAW,
+               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
+               .<span class="variable">prot =</span>       &amp;raw_prot,
+               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
+               .<span class="variable">capability =</span> CAP_NET_RAW,
+               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
+       }
+};
+</code></pre><blockquote>
+<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
+    inet_register_protosw(q);
+</code></pre><blockquote>
+<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
+</blockquote>
+<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+
+<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+{
+    <span class="keyword">struct</span> list_head *lh;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">int</span> protocol = p-&gt;protocol;
+    <span class="keyword">struct</span> list_head *last_perm;
+
+    spin_lock_bh(&amp;inetsw_lock);
+
+    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
+        <span class="keyword">goto</span> out_illegal;
+
+    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
+    answer = <span class="literal">NULL</span>;
+    last_perm = &amp;inetsw[p-&gt;type];
+    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+
+        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
+         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
+         * 得到inet_protosw的地址
+         */</span>
+        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+
+        <span class="comment">/* Check only the non-wild match. */</span>
+        <span class="comment">/* 检查是否有已经注册过的socket type
+         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
+         * 且protocol相等，不能覆盖已有的socket类型.
+         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
+         */</span>
+        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
+            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+                <span class="keyword">break</span>;
+            last_perm = lh;
+        }
+
+        answer = <span class="literal">NULL</span>;
+    }
+    <span class="keyword">if</span> (answer)
+        <span class="keyword">goto</span> out_permanent;
+
+    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
+     * the new entry does not override a permanent entry when matched with
+     * a wild-card protocol. But it is allowed to override any existing
+     * non-permanent entry.  This means that when we remove this entry, the 
+     * system automatically returns to the old behavior.
+     * 挂链操作
+     */</span>
+    list_add_rcu(&amp;p-&gt;list, last_perm);
+<span class="keyword">out</span>:
+    spin_unlock_bh(&amp;inetsw_lock);
+
+    synchronize_net();
+
+    <span class="keyword">return</span>;
+
+out_permanent:
+    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
+           protocol);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+out_illegal:
+    printk(KERN_ERR
+           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
+           p-&gt;type);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+}
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/algorithm/">algorithm</a>
+  <a class="article-category-link" href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/">TCP_IP.Architecture.Design.and.Implementation.in.Linux</a>
 </div>
 
 
@@ -135,7 +238,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/" data-title="Merge Sort | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/" data-title="TCP/IP--&gt;Socket--&gt;PF_INET协议族注册 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -145,18 +248,18 @@
 <nav class="article-nav clearfix">
  
  <div class="prev" >
- <a href="/2015/02/02/kernel/ramfs/" title="ramfs文件系统">
+ <a href="/2015/02/05/python/2014-12-31-函数式编程/" title="Python--函数式编程">
   <strong>上一篇：</strong><br/>
   <span>
-  ramfs文件系统</span>
+  Python--函数式编程</span>
 </a>
 </div>
 
 
 <div class="next">
-<a href="/2015/01/30/kernel/vfs_tree/"  title="VFS目录树">
+<a href="/2015/02/05/libeio/2015-01-12-libeio_framework/"  title="Libeio--libeio流程分析">
  <strong>下一篇：</strong><br/> 
- <span>VFS目录树
+ <span>Libeio--libeio流程分析
 </span>
 </a>
 </div>
