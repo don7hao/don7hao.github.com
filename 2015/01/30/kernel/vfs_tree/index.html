@@ -83,7 +83,7 @@ struct file_system_type {
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS目录树"><span class="toc-number">1.</span> <span class="toc-text">VFS目录树</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统注册"><span class="toc-number">1.1.</span> <span class="toc-text">文件系统注册</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#rootfs注册"><span class="toc-number">1.1.1.</span> <span class="toc-text">rootfs注册</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VFS根目录建立"><span class="toc-number">1.2.</span> <span class="toc-text">VFS根目录建立</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#命名空间"><span class="toc-number">1.2.1.</span> <span class="toc-text">命名空间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vfsmount"><span class="toc-number">1.2.2.</span> <span class="toc-text">vfsmount</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#建立根目录"><span class="toc-number">1.2.3.</span> <span class="toc-text">建立根目录</span></a></li></ol></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS目录树"><span class="toc-number">1.</span> <span class="toc-text">VFS目录树</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统注册"><span class="toc-number">1.1.</span> <span class="toc-text">文件系统注册</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#rootfs注册"><span class="toc-number">1.1.1.</span> <span class="toc-text">rootfs注册</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VFS根目录建立"><span class="toc-number">1.2.</span> <span class="toc-text">VFS根目录建立</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#命名空间"><span class="toc-number">1.2.1.</span> <span class="toc-text">命名空间</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vfsmount"><span class="toc-number">1.2.2.</span> <span class="toc-text">vfsmount</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#建立根目录"><span class="toc-number">1.2.3.</span> <span class="toc-text">建立根目录</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VFS建立新目录"><span class="toc-number">1.3.</span> <span class="toc-text">VFS建立新目录</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#sys_mkdir"><span class="toc-number">1.3.1.</span> <span class="toc-text">sys_mkdir</span></a></li></ol></li></ol></li></ol>
 		
 		</div>
 		
@@ -222,7 +222,62 @@ struct file_system_type {
 
 
 <p>一旦VFS目录树建立，就可以通过系统调用sys_mkdir在这棵树上建立新的叶子节点等。<br>VFS目录树中各目录的主要用途是为以后挂载文件系统提供挂载点，所以将rootfs文件系统挂载到了这棵树的根目录上，而真正的文件操作还是要通过挂载后的文件系统提供的功能接口来进行。</p>
-<p>参考文档：</p>
+<h2 id="VFS建立新目录">VFS建立新目录</h2>
+<p>VFS目录树建立，就可以通过系统调用sys_mkdir在这棵树上建立新的叶子节点等。<br>下面我们用一个实际例子来看看Linux是如何在 VFS 的根目录下建立一个新的目录 “/dev” 的。</p>
+<h3 id="sys_mkdir">sys_mkdir</h3>
+<p>系统调用sys_mkdir(“/dev/“, 0700)-&gt;do_path_lookup</p>
+<pre><code>asmlinkage <span class="keyword">long</span> sys_mkdir(<span class="keyword">const</span> <span class="keyword">char</span> __user *pathname, <span class="keyword">int</span> mode)
+{
+    <span class="keyword">return</span> sys_mkdirat(AT_FDCWD, pathname, mode);
+}
+
+
+<span class="keyword">struct</span> nameidata {
+    <span class="keyword">struct</span> dentry    *dentry;
+    <span class="keyword">struct</span> vfsmount *mnt;
+    <span class="keyword">struct</span> qstr last;
+    <span class="keyword">unsigned</span> <span class="keyword">int</span> flags;
+    <span class="keyword">int</span>        last_type;
+    <span class="keyword">unsigned</span>    depth;
+    <span class="keyword">char</span> *saved_names[MAX_NESTED_LINKS + <span class="number">1</span>];
+
+    <span class="comment">/* Intent data */</span>
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> open_intent open;
+    } intent;
+};
+
+asmlinkage <span class="keyword">long</span> sys_mkdirat(<span class="keyword">int</span> dfd, <span class="keyword">const</span> <span class="keyword">char</span> __user *pathname, <span class="keyword">int</span> mode)
+{
+    <span class="keyword">int</span> error = <span class="number">0</span>;
+    <span class="keyword">char</span> * tmp;
+
+    tmp = getname(pathname);
+    error = PTR_ERR(tmp);
+    <span class="keyword">if</span> (!IS_ERR(tmp)) {
+        <span class="keyword">struct</span> dentry *dentry;
+        <span class="keyword">struct</span> nameidata nd;
+
+        error = do_path_lookup(dfd, tmp, LOOKUP_PARENT, &amp;nd);
+        <span class="keyword">if</span> (error)
+            <span class="keyword">goto</span> <span class="keyword">out</span>;
+        dentry = lookup_create(&amp;nd, <span class="number">1</span>);
+        error = PTR_ERR(dentry);
+        <span class="keyword">if</span> (!IS_ERR(dentry)) {
+            <span class="keyword">if</span> (!IS_POSIXACL(nd<span class="variable">.dentry</span>-&gt;d_inode))
+                mode &amp;= ~current-&gt;fs-&gt;umask;
+            error = vfs_mkdir(nd<span class="variable">.dentry</span>-&gt;d_inode, dentry, mode);
+            dput(dentry);
+        }
+        mutex_unlock(&amp;nd<span class="variable">.dentry</span>-&gt;d_inode-&gt;i_mutex);
+        path_release(&amp;nd);
+<span class="keyword">out</span>:
+        putname(tmp);
+    }
+
+    <span class="keyword">return</span> error;
+}
+</code></pre><p>参考文档：</p>
 <ol>
 <li><a href="http://www.ibm.com/developerworks/cn/linux/l-vfs/" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/linux/l-vfs/</a></li>
 </ol>

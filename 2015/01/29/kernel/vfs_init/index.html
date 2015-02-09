@@ -82,7 +82,7 @@ VFS是一种软件机制，也称它为Linux 的文件系">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS_"><span class="toc-number">1.</span> <span class="toc-text">VFS </span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#什么是VFS"><span class="toc-number">1.1.</span> <span class="toc-text">什么是VFS</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#文件系统几个数据结构"><span class="toc-number">1.2.</span> <span class="toc-text">文件系统几个数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#superblock"><span class="toc-number">1.2.1.</span> <span class="toc-text">superblock</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#inode_(i节点)"><span class="toc-number">1.2.2.</span> <span class="toc-text">inode (i节点)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#dentry_(目录块)"><span class="toc-number">1.2.3.</span> <span class="toc-text">dentry (目录块)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#file"><span class="toc-number">1.2.4.</span> <span class="toc-text">file</span></a></li></ol></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#VFS_"><span class="toc-number">1.</span> <span class="toc-text">VFS </span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#什么是VFS"><span class="toc-number">1.1.</span> <span class="toc-text">什么是VFS</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#对象类型"><span class="toc-number">1.2.</span> <span class="toc-text">对象类型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#superblock"><span class="toc-number">1.2.1.</span> <span class="toc-text">superblock</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#struct_super_block"><span class="toc-number">1.2.1.1.</span> <span class="toc-text">struct super_block</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#超级块的操作函数"><span class="toc-number">1.2.1.2.</span> <span class="toc-text">超级块的操作函数</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#inode"><span class="toc-number">1.2.2.</span> <span class="toc-text">inode</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#struct_inode"><span class="toc-number">1.2.2.1.</span> <span class="toc-text">struct inode</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#索引节点操作"><span class="toc-number">1.2.2.2.</span> <span class="toc-text">索引节点操作</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#file"><span class="toc-number">1.2.3.</span> <span class="toc-text">file</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#file操作"><span class="toc-number">1.2.3.1.</span> <span class="toc-text">file操作</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#dentry_(目录块)"><span class="toc-number">1.2.4.</span> <span class="toc-text">dentry (目录块)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#dentry_操作"><span class="toc-number">1.2.4.1.</span> <span class="toc-text">dentry 操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#目录项高级缓存"><span class="toc-number">1.2.4.2.</span> <span class="toc-text">目录项高级缓存</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#与进程相关的文件"><span class="toc-number">1.3.</span> <span class="toc-text">与进程相关的文件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#fs_struct"><span class="toc-number">1.3.1.</span> <span class="toc-text">fs_struct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#files_struct"><span class="toc-number">1.3.2.</span> <span class="toc-text">files_struct</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总体图"><span class="toc-number">1.4.</span> <span class="toc-text">总体图</span></a></li></ol></li></ol>
 		
 		</div>
 		
@@ -93,23 +93,16 @@ VFS是一种软件机制，也称它为Linux 的文件系">
 <p>VFS是一种软件机制，也称它为Linux 的文件系统管理者更确切点，与它相关的数据结构只存在于物理内存当中。所以在每次系统初始化期间，Linux都首先要在内存当中构造一棵VFS的目录树(在Linux的源代码里称之为namespace)，实际上便是在内存中建立相应的数据结构。</p>
 <p>VFS是操作系统内核中这样一组数据结构与子程序的集合，它位于操作系统系统调用界面与具体类型文件系统之间，负责：</p>
 <ol>
-<li><p>记录操作系统中可以支持和已经安装有哪些文件系统类型，</p>
-</li>
-<li><p>将相关系统调用转换为对具体类型文件系统的调用，</p>
-</li>
-<li><p>负责不同类型文件系统间的协同工作(例如跨FS复制)，</p>
-</li>
-<li><p>实现对不同类型文件系统的动态装卸和可扩充性等。</p>
-</li>
+<li>记录操作系统中可以支持和已经安装有哪些文件系统类型，</li>
+<li>将相关系统调用转换为对具体类型文件系统的调用，</li>
+<li>负责不同类型文件系统间的协同工作(例如跨FS复制)，</li>
+<li>实现对不同类型文件系统的动态装卸和可扩充性等。</li>
 </ol>
 <p>通过以上功能，VFS:</p>
 <ol>
-<li><p>向用户、应用程序、和操作系统其他部件提供了一个通用的、统一的、标准的、抽象的、虚拟的系统调用接口界面(所以称Virtual)</p>
-</li>
-<li><p>对以上应用程序等掩盖不同类型文件系统的差异和细节</p>
-</li>
-<li><p>为以上应用程序等提供了对具体文件系统类型的程序独立性和透明性。</p>
-</li>
+<li>向用户、应用程序、和操作系统其他部件提供了一个通用的、统一的、标准的、抽象的、虚拟的系统调用接口界面(所以称Virtual)</li>
+<li>对以上应用程序等掩盖不同类型文件系统的差异和细节</li>
+<li>为以上应用程序等提供了对具体文件系统类型的程序独立性和透明性。</li>
 </ol>
 <blockquote>
 <p>例如，当用户程序AP1在两次运行中分别读EXT2、NTFS文件，都使用同样的read(…)系统调用函数,程序AP1不必改变</p>
@@ -118,27 +111,224 @@ VFS是一种软件机制，也称它为Linux 的文件系">
 <p><img src="/img/vfs_1.png" alt="vfs_1" width="800" height="400"> </p>
 
 
-<h2 id="文件系统几个数据结构">文件系统几个数据结构</h2>
+<h2 id="对象类型">对象类型</h2>
+<p>VFS包含一下几个对象类型</p>
 <p><img src="/img/vfs_2.png" alt="vfs_2" width="800" height="400"> </p>
 
 <h3 id="superblock">superblock</h3>
-<p>超级块，是文件系统最基本的元数据(data about data).<br>存储已挂载的文件系统信息，比如文件系统类型，大小，状态，挂载时间等。</p>
-<h3 id="inode_(i节点)">inode (i节点)</h3>
-<p>包含一个文件(在linux和unix系统里所有的物体都是文件，比如实际文件，目录，设备等)的元数据，比如文件的owner和group的读写执行权限和访问时间等。</p>
+<p>超级块，是文件系统最基本的元数据(data about data).<br>存储已挂载的文件系统信息。比如基于磁盘的文件系统，superblock就是存储在磁盘上的控制块。</p>
+<h4 id="struct_super_block">struct super_block</h4>
+<p>所有的超级块对象都是以双向链表的形式连接在一起。</p>
+<pre><code>struct super_block {
+    struct list_head    s_list;        /<span class="keyword">*</span> Keep this first，指向相邻的元素 <span class="keyword">*</span>/
+    /<span class="keyword">*</span> 表示超级块(在内存中)是否是脏数据（若脏，磁盘上的数据需要更新） <span class="keyword">*</span>/
+    unsigned char        s_dirt;
+    ......
+    /<span class="keyword">*</span> 同步superblock的相关操作集 <span class="keyword">*</span>/
+    struct super_operations    <span class="keyword">*</span>s_op;
+    ......
+
+    /<span class="keyword">*</span> 指向文件系统superblock，比如s_fs_info指向ext2_sb_info结构 <span class="keyword">*</span>/
+    void             <span class="keyword">*</span>s_fs_info;    /<span class="keyword">*</span> Filesystem private info <span class="keyword">*</span>/
+    ......
+};
+</code></pre><h4 id="超级块的操作函数">超级块的操作函数</h4>
+<p>超级块的操作函数，由super_operations结构体表示，定义在linux/fs.h中，如下：<br>创建，管理和销毁超级块对象的代码位于文件fs/super.c中，超级块对象通过alloc_super()函数创建并初始化。<br>在文件系统安装时，内核会调用该函数以便从磁盘读取文件系统超级块，并且将其信息填充到内存中的超级块对象中。</p>
+<pre><code><span class="keyword">int</span> (*write_inode) (<span class="keyword">struct</span> inode *, <span class="keyword">int</span>);
+</code></pre><p>当文件系统需要对其超级块执行操作时，首先要在超级块对象中寻找需要的操作方法。</p>
+<blockquote>
+<p>比如一个文件系统要写自己的超级块，需要调用：sb-&gt;s_op-&gt;write_super(sb)这里的sb是指向文件系统超级块的指针，沿着该指针进入超级块操作函数表，并从表中取得希望得到的write_super()函数，该函数执行写入超级块的实际操作。</p>
+</blockquote>
+<h3 id="inode">inode</h3>
+<p>存储文件的大体信息。对基于磁盘的文件系统，inode就是存储在磁盘上的文件控制块。</p>
 <blockquote>
 <p>inode中不存储文件的名字，每个inode有一个inode number(i节点号)，一个inode number能够唯一地标识一个文件。</p>
 </blockquote>
+<h4 id="struct_inode">struct inode</h4>
+<p>文件系统处理文件所需要的所有信息都放在struct inode里，文件名可以随时更改，但是索引节点号对文件是唯一的，并且文件消失节点才消失。struct inode 定义在linux/fs.h中。</p>
+<pre><code><span class="keyword">unsigned</span> <span class="keyword">long</span>        i_state;
+</code></pre><p>如果i_state字段的值等于I_DIRTY_SYNC,<br>    I_DIRTY_DATASYNC或I_DIRTY_PAGES,该索引节点就是<strong>脏</strong>的，对应的磁盘索引节点需要被更新。</p>
+<p>每个索引节点对象总是出现在下列双向循环链表的某个链表中(所有情况下，指向相邻元素的指针存放在i_list字段中)：</p>
+<ol>
+<li>有效未使用的索引节点链表，典型的如那些镜像有效的磁盘索引节点，且当前未被任何进程使用。这些索引节点不为脏，且它们的i_count字段置为0。链表中的首元素和尾元素是由变量inode_unused的next字段和prev字段分别指向的。这个链表用作磁盘高速缓存。</li>
+<li>正在使用的索引节点链表，也就是那些镜像有效的磁盘索引节点，且当前被某些进程使用。这些索引节点不为脏，但它们的i_count字段为正数。链表中的首元素和尾元素是由变量inode_in_use引用的。</li>
+<li>脏索引节点的链表。链表中的首元素和尾元素是由相应超级块对象的s_dirty字段引用的。</li>
+</ol>
+<p>此外，每个索引节点对象也包含在每个文件系统的双向循环链表中，链表的头存放在超级块对象的<strong>s_inodes字段</strong>中；索引节点对象的<strong>i_sb_list字段</strong>存放了指向链表相邻元素的指针。</p>
+<pre><code><span class="class"><span class="keyword">struct</span> <span class="title">super_block</span> </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    s_inodes;    /* all inodes */
+}
+struct inode </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    i_sb_list;
+}</span>
+</code></pre><p>最后，索引节点对象也存放在一个称为inode_hashtable的散列表中。散列表加快了对索引节点对象的搜索，前提是系统内核要知道索引节点号及文件所在文件系统对应的超级块对象的地址。<br>由于散列技术可能引发冲突，所以索引节点对象包含一个<strong>i_hash字段</strong>，该字段中包含向前和向后的两个指针，分别指向散列到同一地址的前一个索引节点和后一个索引节点；该字段因此创建了由这些索引节点组成的一个双向链表。</p>
+<pre><code><span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span>    i_hash;
+struct hlist_node </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span> *next, **pprev;
+};</span>
+</code></pre><h4 id="索引节点操作">索引节点操作</h4>
+<pre><code><span class="keyword">struct</span> inode_operations    *i_op;
+<span class="keyword">struct</span> inode_operations {
+    <span class="comment">//create():创建一个新的磁盘索引结点。</span>
+    <span class="keyword">int</span> (*create) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *,<span class="keyword">int</span>, <span class="keyword">struct</span> nameidata *);
+    <span class="comment">//lookup():查诈一个索引结点所在的目录。</span>
+    <span class="keyword">struct</span> dentry * (*lookup) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *, <span class="keyword">struct</span> nameidata *);
+    ......
+    <span class="comment">//mkdir():为目录项创建一个新的索引结点。</span>
+    <span class="keyword">int</span> (*mkdir) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *,<span class="keyword">int</span>);
+    ......
+};
+</code></pre><h3 id="file">file</h3>
+<p>存储一个进程与一个被该进程打开的文件之间交互的信息。该信息只存在内核内存中且当该进程拥有这个文件时。<br>同一个进程可以多次打开同一个文件而得到多个不同的file结构，file结构描述被打开文件的属性，如文件的当前偏移量等信息。</p>
+<pre><code><span class="keyword">struct</span> file {
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> list_head    fu_list;
+        <span class="keyword">struct</span> rcu_head     fu_rcuhead;
+    } f_u;
+    <span class="comment">//与文件相关的目录项对象</span>
+    <span class="keyword">struct</span> dentry        *f_dentry;
+    <span class="comment">//含有该文件的已安装文件系统</span>
+    <span class="keyword">struct</span> vfsmount         *f_vfsmnt;
+    <span class="keyword">const</span> <span class="keyword">struct</span> file_operations    *f_op;
+    <span class="comment">//文件对象的引用计数器</span>
+    atomic_t        f_count;
+    <span class="comment">//当打开文件时所指定的标志</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span>         f_flags;
+    <span class="comment">//进程访问模式</span>
+    mode_t            f_mode;
+    <span class="comment">//当前文件位移量（文件指针）</span>
+    loff_t            f_pos;
+    <span class="comment">//通过信号进行I/O事件通知的数据</span>
+    <span class="keyword">struct</span> fown_struct    f_owner;
+    <span class="comment">//用户UID和GID</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span>        f_uid, f_gid;
+    ......
+};
+</code></pre><p>存放在文件对象中的主要信息是文件指针f_pos，即文件中当前的位置，下一个操作将在该位置发生。由于几个进程可能同时访问同一文件，因此文件指针必须存放在文件对象而不是索引节点对象中。</p>
+<p>文件对象的f_count字段是一个引用计数器：它记录使用文件对象的进程数（记住，以CLONE_FILES标志创建的轻量级进程共享打开文件表，因此它们可以使用相同的文件对象）。当内核本身使用该文件对象时也要增加计数器的值——例如，<strong>把对象插入链表中或发出dup()系统调用时</strong>。</p>
+<h4 id="file操作">file操作</h4>
+<p>内核将一个索引节点从磁盘装入内存时，就会把指向这些文件操作的指针存放在file_operations结构中，而该结构的地址存放在该索引节点对象的i_fop字段中。当进程打开这个文件时，VFS就用存放在索引节点中的这个地址初始化新文件对象的fop字段，使得对文件操作的后续调用能够使用这些函数。</p>
 <h3 id="dentry_(目录块)">dentry (目录块)</h3>
-<p>dentry结构存储目录项和对应文件（inode）的信息。</p>
+<p>VFS把每个目录看作由若干子目录和文件组成的一个普通文件。然而目录项不同，一旦目录项被读人内存，VFS就把它转换成基于dentry结构的一个目录项对象。对于进程查找的路径名中的每个分量，内核都为其创建一个目录项对象；目录项对象将每个分量与其对应的索引节点相联系。例如，在查找路名/tmp/test时，内核为根目录“/“创建一个目录项对象，为根目录下的tmp项创建一个第二级目录项对象，为/tmp目录下的test项创建一个第三级目录项对象。</p>
 <blockquote>
 <p>目录就是文件，比如/bin/ls,bin和ls都是文件，bin是一个目录文件，ls是一个普通文件。</p>
 <p>两个不同的file结构可以对应同一个dentry结构。进程多次打开同一个文件时，对应的只有一个dentry结构。</p>
+<p>目录项对象在磁盘上并没有对应的映像，因此在dentry结构中不包含指出该对象已被修改的字段。目录项对象存放在名为dentry_cache的slab分配器高速缓存中。因此，目录项对象的创建和删除是通过调用kmem_cache_alloc()和kmem_cache_free()实现的。</p>
 </blockquote>
-<h3 id="file">file</h3>
-<p>进程每打开一个文件，就会有一个file结构与之对应。<br>同一个进程可以多次打开同一个文件而得到多个不同的file结构，file结构描述被打开文件的属性，如文件的当前偏移量等信息。</p>
-<p><img src="/img/vfs_3.png" alt="vfs_3" width="800" height="400"> </p>
+<pre><code><span class="keyword">struct</span> dentry {
+    atomic_t d_count;
+    <span class="keyword">struct</span> inode *d_inode;        <span class="comment">/* Where the name belongs to - NULL is* negative */</span>
+    .......
+};
+</code></pre><p>每个目录项对象可以处于以下四种状态之一：</p>
+<ol>
+<li>空闲状态（free）：处于该状态的目录项对象不包括有效的信息，且还没有被VFS使用。对应的内存区由slab分配器进行处理。</li>
+<li>未使用状态（unused）：处于该状态的目录项对象当前还没有被内核使用。该对象的引用计数器d_count的值为0，但其d_inode字段仍然指向关联的索引节点。该目录项对象包含有效的信息，但为了在必要时回收内存，它的内容可能被丢弃。</li>
+<li>正在使用状态（in use）：处于该状态的目录项对象当前正在被内核使用。该对象的引用计数器d_count的值为正数，其d_inode字段指向关联的索引节点对象。该目录项对象包含有效的信息，并且不能被丢弃。</li>
+<li>负状态（negative）：与目录项关联的索引节点不复存在，那是因为相应的磁盘索引节点已被删除，或者因为目录项对象是通过解析一个不存在文件的路径名创建的。目录项对象的d_inode字段被置为NULL，但该对象仍然被保存在目录项高速缓存中，以便后续对同一文件目录名的查找操作能够快速完成。术语“负状态”容易使人误解，因为根本不涉及任何负值。</li>
+</ol>
+<h4 id="dentry_操作">dentry 操作</h4>
+<pre><code>struct dentry_operations {
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 在把目录项对象转换为一个文件路径名之前，判定该目录项对象是否仍然有效。
+     <span class="keyword">*</span> 缺省的VFS函数什么也不做，而网络文件系统可以指定自己的函数。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_revalidate)(struct dentry <span class="keyword">*</span>, struct nameidata <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 生成一个散列值；这是用于目录项散列表的、特定干具体文件系统的散列函数。
+     <span class="keyword">*</span> 参数dentry标识包含路径分量的目录。参数name指向一个结构，
+     <span class="keyword">*</span> 该结构包含要查找的路径名分量以及由散列函数生成的散列值。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_hash) (struct dentry <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>);
+    /<span class="keyword">*</span> 比较两个文件名。name1应该属于dir所指的目录。
+     <span class="keyword">*</span> 缺省的VFS函数是常用的字符串匹配函数。
+     <span class="keyword">*</span> 不过，每个文件系统可用自己的方式实现这一方法。
+     <span class="keyword">*</span> 例如，MS.DOS文件系统不区分大写和小写字母。
+     <span class="keyword">*</span><span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_compare) (struct dentry <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 当对目录项对象的最后一个引用被删除（d_count变为“0”）时，
+     <span class="keyword">*</span> 调用该方法。缺省的VFS函数什么也不做。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_delete)(struct dentry <span class="keyword">*</span>);
+    /<span class="keyword">*</span> 当要释放一个目录项对象时（放入slab分配器），调用该方法。
+     <span class="keyword">*</span> 缺省的VFS函数什么也不做。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    void (<span class="keyword">*</span>d_release)(struct dentry <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 当一个目录项对象变为“负”状态（即丢弃它的索引节点）时，调用该方法。
+     <span class="keyword">*</span> 缺省的VFS函数调用iput()释放索引节点对象。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    void (<span class="keyword">*</span>d_iput)(struct dentry <span class="keyword">*</span>, struct inode <span class="keyword">*</span>);
+};
+</code></pre><h4 id="目录项高级缓存">目录项高级缓存</h4>
+<p>为了最大限度地提高处理同一个文件需要被反复访问的这些目录项对象的效率，Linux使用目录项高速缓存，它由两种类型的数据结构组成：</p>
+<ol>
+<li>一个处于正在使用、未使用或负状态的目录项对象的集合。</li>
+<li>一个散列表，从中能够快速获取与给定的文件名和目录名对应的目录项对象。同样，如果访问的对象不在目录项高速缓存中，则散列表函数返回一个空值。</li>
+</ol>
+<p>目录项高速缓存的作用还相当于索引节点高速缓存(inode cache)的控制器。在内核内存中，并不丢弃与未用目录项相关的索引节点，这是由于目录项高速缓存仍在使用它们。因此，这些索引节点对象保存在RAM中，并能够借助相应的目录项快速引用它们。</p>
+<pre><code><span class="keyword">struct</span> list_head d_lru;        <span class="comment">/* LRU list */</span>
+</code></pre><p>所有“未使用”目录项对象都存放在一个“最近最少使用(Least Recently used,LRU)”的双向链表中，该链表按照插入的时间顺序。换句话说，<strong>最后释放的目录项对象放在链表的首部，所以最近最少使用的目录项对象总是靠近链表的尾部。一旦目录项高速缓存的空间开始变小，内核就从链表的尾部删除元素，使得最近最常使用的对象得以保留</strong>。</p>
+<h2 id="与进程相关的文件">与进程相关的文件</h2>
+<p>每个进程都有它自己当前的工作目录和它自己的根目录。这仅仅是内核用来表示进程与文件系统相互作用所必须维护的数据中的两个列子。类型为fs_struct的数据结构就用于此目的，且每个进程描述的fs字段就指向进程的fs_struct结构。</p>
+<h3 id="fs_struct">fs_struct</h3>
+<pre><code><span class="keyword">struct</span> fs_struct {
+    atomic_t count; <span class="comment">//共享这个表的进程个数</span>
+    rwlock_t <span class="keyword">lock</span>;  <span class="comment">//用于表中字段的读/写自旋锁</span>
+    <span class="comment">//当打开文件设置文件权限时所使用的位掩码</span>
+    <span class="keyword">int</span> umask;
+    <span class="comment">//根目录，当前目录，模拟根目录的目录项</span>
+    <span class="keyword">struct</span> dentry * root, * pwd, * altroot;
+    <span class="comment">//根目录锁安装的文件系统对象</span>
+    <span class="comment">//当前目录所安装的文件系统对象</span>
+    <span class="comment">//模拟目录所安装的文件系统对象(在80x86结构上始终为NULL)</span>
+    <span class="keyword">struct</span> vfsmount * rootmnt, * pwdmnt, * altrootmnt;
+};
+</code></pre><h3 id="files_struct">files_struct</h3>
+<pre><code><span class="keyword">struct</span> fdtable {
+    <span class="comment">//文件对象的当前最大数目</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span> max_fds;
+    <span class="comment">//文件描述符的当前最大数目</span>
+    <span class="keyword">int</span> max_fdset;
+    <span class="comment">//指向文件对象指针数组的指针</span>
+    <span class="keyword">struct</span> file ** fd;      <span class="comment">/* current fd array */</span>
+    <span class="comment">//指向执行exec()时需要关闭的文件描述符指针</span>
+    fd_set *close_on_exec;
+    <span class="comment">//指向打开文件描述符的指针</span>
+    fd_set *open_fds;
+    <span class="keyword">struct</span> rcu_head rcu;
+    <span class="keyword">struct</span> files_struct *free_files;
+    <span class="keyword">struct</span> fdtable *next;
+};
 
+<span class="keyword">struct</span> files_struct {
+  <span class="comment">/*
+   * read mostly part
+   */</span>
+    <span class="comment">//共享该表的进程数目</span>
+    atomic_t count;
+    <span class="keyword">struct</span> fdtable *fdt;
+    <span class="keyword">struct</span> fdtable fdtab;
+  <span class="comment">/*
+   * written part on a separate cache line in SMP
+   */</span>
+    spinlock_t file_lock ____cacheline_aligned_in_smp;
+    <span class="keyword">int</span> next_fd;
+    <span class="comment">//执行exec()时需要关闭的文件描述符的初始集合</span>
+    <span class="keyword">struct</span> embedded_fd_set close_on_exec_init;
+    <span class="comment">//文件描述符的初始集合</span>
+    <span class="keyword">struct</span> embedded_fd_set open_fds_init;
+    <span class="comment">//文件对象指针的初始化数组</span>
+    <span class="keyword">struct</span> file * fd_array[NR_OPEN_DEFAULT];
+};
+</code></pre><p>fd域指向文件对象的指针数组。该数组的长度存放在max_fds域中。通常，fd域指向files_struct结构的fd_array域，该域包括32个文件对象指针。如果进程打开的文件数目多于32，内核就分配一个新的、更大的文件指针数组，并将其地址存放在fd域中；内核同时也更新max_fds域的值。</p>
+<p>对于在fd数组中有入口地址的每个文件来说，数组的索引就是文件描述符（file descriptor）。通常，数组的第一个元素（索引为0）是进程的标准输入文件，数组的第二个元素（索引为1）是进程的标准输出文件，数组的第三个元素（索引为2）是进程的标准错误文件（参见图8.3）。请注意，借助于dup(  )、dup2(  )和 fcntl(  ) 系统调用，两个文件描述符就可以指向同一个打开的文件，也就是说，数组的两个元素可能指向同一个文件对象。当用户使用shell结构（如2&gt;&amp;1）将标准错误文件重定向到标准输出文件上时，用户总能看到这一点。</p>
+<p><img src="/img/files_struct.png" alt="fd" width="1500" height="600"> </p>
 
+<p>当开始<strong>使用一个文件对象时调用内核提供的fget()函数</strong>。<br>当内核<strong>完成对文件对象的使用时，调用内核提供的fput()函数</strong>。</p>
+<h2 id="总体图">总体图</h2>
+<p><img src="/img/vfs_arch.jpg" alt="vfs结构图" width="1500" height="600"> </p>
   
 	</div>
 		<footer class="article-footer clearfix">
