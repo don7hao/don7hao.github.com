@@ -1,0 +1,2766 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title><![CDATA[don7hao's blog]]></title>
+  <subtitle><![CDATA[Write it step by step]]></subtitle>
+  <link href="/atom.xml" rel="self"/>
+  <link href="http://don7hao.github.com/"/>
+  <updated>2015-02-09T03:47:30.211Z</updated>
+  <id>http://don7hao.github.com/</id>
+  
+  <author>
+    <name><![CDATA[don7hao]]></name>
+    <email><![CDATA[don7hao@gmail.com]]></email>
+  </author>
+  
+  <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[ramfs文件系统]]></title>
+    <link href="http://don7hao.github.com/2015/02/02/kernel/ramfs/"/>
+    <id>http://don7hao.github.com/2015/02/02/kernel/ramfs/</id>
+    <published>2015-02-02T08:45:07.000Z</published>
+    <updated>2015-02-06T06:01:55.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
+<p>一般文件系统的注册都是通过 module_init 宏</p>
+<h3 id="ramfs注册">ramfs注册</h3>
+<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&gt;register_filesystem</p>
+<pre><code>module_init(init_ramfs_fs)
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type ramfs_fs_type = {
+    .name        = <span class="string">"ramfs"</span>,
+    .get_sb        = ramfs_get_sb,
+    .kill_sb    = kill_litter_super,
+};
+
+<span class="keyword">static</span> <span class="keyword">int</span> __init init_ramfs_fs(<span class="keyword">void</span>)
+{
+    <span class="keyword">return</span> register_filesystem(&amp;ramfs_fs_type);
+}
+</code></pre><p>把ramfs挂在到全局file_systems链表上。</p>
+<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
+{
+    <span class="keyword">int</span> res = <span class="number">0</span>;
+    <span class="keyword">struct</span> file_system_type ** p;
+
+    <span class="keyword">if</span> (!fs)
+        <span class="keyword">return</span> -EINVAL;
+    <span class="keyword">if</span> (fs-&gt;next)
+        <span class="keyword">return</span> -EBUSY;
+    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
+    write_lock(&amp;file_systems_lock);
+    p = find_filesystem(fs-&gt;name);
+    <span class="keyword">if</span> (*p)
+        res = -EBUSY;
+    <span class="keyword">else</span>
+        *p = fs;
+    write_unlock(&amp;file_systems_lock);
+    <span class="keyword">return</span> res;
+}
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
+{
+    <span class="keyword">struct</span> file_system_type **p;
+    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
+        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
+            <span class="keyword">break</span>;
+    <span class="keyword">return</span> p;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
+<p>一般文件系统的注册都是通过 module_init 宏</p>
+<h3 id="ramfs注册">ramfs注册</h3>
+<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&g]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[字符串转浮点数]]></title>
+    <link href="http://don7hao.github.com/2015/02/02/programming/StringToFloat/"/>
+    <id>http://don7hao.github.com/2015/02/02/programming/StringToFloat/</id>
+    <published>2015-02-02T08:45:07.000Z</published>
+    <updated>2015-02-03T08:02:10.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="浮点数">浮点数</h2>
+<p><a href="http://www.ruanyifeng.com/blog/2010/06/ieee_floating-point_representation.html" target="_blank" rel="external">浮点数的表示</a></p>
+<h2 id="代码实现">代码实现</h2>
+<pre><code><span class="preprocessor">#<span class="keyword">include</span> &lt;stdio.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;stdlib.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;string.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;ctype.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;limits.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;float.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;math.h&gt;</span>
+
+<span class="keyword">double</span> check_overflow(<span class="keyword">double</span> val)
+{
+    <span class="keyword">if</span> (val &gt; DBL_MAX){
+        <span class="keyword">return</span> DBL_MAX;
+    }<span class="keyword">else</span> <span class="keyword">if</span> (val &lt;  DBL_MIN){
+        <span class="keyword">return</span> DBL_MIN;
+    }
+    <span class="keyword">return</span> val;
+}
+
+
+<span class="keyword">double</span> get_exp(<span class="keyword">char</span> *s)
+{
+    <span class="keyword">double</span> <span class="built_in">exp</span> = <span class="number">10</span>;
+    <span class="keyword">int</span> num = <span class="number">0x00</span>;
+    <span class="keyword">char</span> c = *s;
+
+    <span class="keyword">if</span> (c == <span class="string">'-'</span>){
+        <span class="built_in">exp</span> = <span class="number">0.1</span>;
+        s++;
+    }<span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'+'</span>){
+        s++;
+    }
+
+    <span class="keyword">while</span> ((c = *s++) != <span class="string">'\0'</span>){
+        <span class="keyword">if</span> ((c &gt;= <span class="string">'0'</span>) &amp;&amp; (c &lt;= <span class="string">'9'</span>)){
+            num = num*<span class="number">10</span> + c - <span class="string">'0'</span>;
+        }
+        <span class="keyword">else</span>{
+            <span class="keyword">return</span> <span class="number">0x01</span>;
+        }
+    }
+
+    <span class="keyword">double</span> tmp = <span class="number">0x01</span>;
+    <span class="keyword">while</span> (num--){
+        tmp *= <span class="built_in">exp</span>;
+    }
+
+    <span class="keyword">return</span> tmp;
+}
+
+<span class="keyword">double</span> atof_beta(<span class="keyword">char</span> *s)
+{
+    <span class="keyword">double</span> integer = <span class="number">0x00</span>;
+    <span class="keyword">double</span> fraction = <span class="number">0x00</span>;
+    <span class="keyword">int</span> sign = <span class="number">0x01</span>;
+    <span class="keyword">int</span> fraction_flag = <span class="number">0x00</span>;
+    <span class="keyword">double</span> divisor = <span class="number">0x01</span>;
+    <span class="keyword">double</span> <span class="built_in">exp</span> = <span class="number">0x01</span>;
+
+    <span class="keyword">char</span> c = *s;
+
+    <span class="keyword">if</span> (c == <span class="string">'-'</span>){
+        sign = -<span class="number">1</span>;
+        s++;
+    }<span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'+'</span>){
+        sign = <span class="number">1</span>;
+        s++;
+    }
+
+    <span class="keyword">while</span> ((c = (*s++)) != <span class="string">'\0'</span>){
+        <span class="keyword">if</span> ((c &gt;= <span class="string">'0'</span>) &amp;&amp; (c &lt;= <span class="string">'9'</span>)){
+            <span class="keyword">if</span> (!fraction_flag){
+                integer = integer*<span class="number">10</span> + (c -<span class="string">'0'</span>);
+            }<span class="keyword">else</span>{
+                fraction = fraction*<span class="number">10</span> + c -<span class="string">'0'</span>;
+                divisor *= <span class="number">10</span>;
+            }
+        }<span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'.'</span>){
+            fraction_flag = <span class="number">0x01</span>;
+        }<span class="keyword">else</span> <span class="keyword">if</span> ((c == <span class="string">'e'</span>) || (c == <span class="string">'E'</span>)){
+            <span class="built_in">exp</span> = get_exp(s);
+            <span class="keyword">break</span>;
+        }<span class="keyword">else</span>{
+            <span class="keyword">break</span>;
+        }
+    }
+
+    integer = check_overflow(integer);
+    fraction = check_overflow(fraction);
+    <span class="built_in">exp</span> = check_overflow(<span class="built_in">exp</span>);
+    <span class="keyword">double</span> val = sign*((integer + (fraction/divisor))*<span class="built_in">exp</span>);
+    <span class="keyword">return</span> check_overflow(val);
+}
+
+<span class="preprocessor">#<span class="keyword">define</span> EPSILON 1e-6</span>
+<span class="preprocessor">#<span class="keyword">define</span> max(a,b) (((a) &gt; (b)) ? (a) : (b))</span>
+<span class="keyword">void</span> main()
+{
+    <span class="keyword">char</span> *s;
+    <span class="keyword">double</span> val;
+    <span class="keyword">while</span>(<span class="number">1</span>)
+    {
+        <span class="built_in">printf</span>(<span class="string">"enter string : "</span>);
+        <span class="keyword">char</span> s[<span class="number">1024</span>], *p;
+        fgets(s, <span class="keyword">sizeof</span>(s), stdin);
+        <span class="keyword">if</span> ((p = <span class="built_in">strchr</span>(s, <span class="string">'\n'</span>)) != NULL) {
+            *p = <span class="string">'\0'</span>; <span class="comment">/* Remove newline */</span>
+        }
+        <span class="built_in">puts</span>(s);
+        val = atof_beta(s);
+        <span class="built_in">printf</span>(<span class="string">"\nfinal value : %lf, %lf, %d\n"</span>, val, atof(s),
+                (<span class="built_in">fabs</span>(val-atof(s)) / max(<span class="built_in">fabs</span>(val), <span class="built_in">fabs</span>(atof(s))) &lt;= EPSILON));
+    }
+
+    <span class="keyword">return</span>;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[<h2 id="浮点数">浮点数</h2>
+<p><a href="http://www.ruanyifeng.com/blog/2010/06/ieee_floating-point_representation.html" target="_blank" rel="exter]]>
+    </summary>
+    
+      <category term="programming" scheme="http://don7hao.github.com/categories/programming/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[VFS目录树]]></title>
+    <link href="http://don7hao.github.com/2015/01/30/kernel/vfs_tree/"/>
+    <id>http://don7hao.github.com/2015/01/30/kernel/vfs_tree/</id>
+    <published>2015-01-30T08:45:07.000Z</published>
+    <updated>2015-02-08T07:17:33.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="VFS目录树">VFS目录树</h1>
+<p>系统初始化期间，Linux 都首先要在内存当中构造一棵VFS的目录树，实际上便是在内存中建立相应的数据结构。</p>
+<h2 id="文件系统注册">文件系统注册</h2>
+<p>在 Linux 源代码中，每种实际的文件系统用以下的数据结构表示：</p>
+<pre><code><span class="keyword">struct</span> file_system_type {
+    <span class="keyword">const</span> <span class="built_in">char</span> *name;
+    <span class="keyword">int</span> fs_flags;
+    <span class="keyword">int</span> (*get_sb) (<span class="keyword">struct</span> file_system_type *, <span class="keyword">int</span>,
+               <span class="keyword">const</span> <span class="built_in">char</span> *, <span class="keyword">void</span> *, <span class="keyword">struct</span> vfsmount *);
+    <span class="keyword">void</span> (*kill_sb) (<span class="keyword">struct</span> super_block *);
+    <span class="keyword">struct</span> <span class="keyword">module</span> *owner;
+    <span class="keyword">struct</span> file_system_type * next;
+    <span class="keyword">struct</span> list_head fs_supers;
+    <span class="keyword">struct</span> lock_class_key s_lock_key;
+    <span class="keyword">struct</span> lock_class_key s_umount_key;
+};
+</code></pre><p>注册过程实际上将表示各实际文件系统的 struct file_system_type数据结构的实例化，然后形成一个链表，内核中用一个名为 file_systems的全局变量来指向该链表的表头.</p>
+<h3 id="rootfs注册">rootfs注册</h3>
+<p>rootfs 的注册是通过init_rootfs()这一初始化函数来完成，这意味着rootfs的注册过程是 Linux 内核初始化阶段不可分割的一部分。<br>init_rootfs_fs-&gt;register_filesystem</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">struct</span> file_system_type rootfs_fs_type = {
+    .name        = <span class="string">"rootfs"</span>,
+    .get_sb        = rootfs_get_sb, <span class="comment">/* 创建superblock*/</span>
+    .kill_sb    = kill_litter_super,
+};
+
+<span class="keyword">int</span> __init init_rootfs(<span class="keyword">void</span>)
+{
+    <span class="keyword">return</span> register_filesystem(&amp;rootfs_fs_type);
+}
+</code></pre><p>把rootfs挂在到全局file_systems链表上。</p>
+<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
+{
+    <span class="keyword">int</span> res = <span class="number">0</span>;
+    <span class="keyword">struct</span> file_system_type ** p;
+
+    <span class="keyword">if</span> (!fs)
+        <span class="keyword">return</span> -EINVAL;
+    <span class="keyword">if</span> (fs-&gt;next)
+        <span class="keyword">return</span> -EBUSY;
+    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
+    write_lock(&amp;file_systems_lock);
+    p = find_filesystem(fs-&gt;name);
+    <span class="keyword">if</span> (*p)
+        res = -EBUSY;
+    <span class="keyword">else</span>
+        *p = fs;
+    write_unlock(&amp;file_systems_lock);
+    <span class="keyword">return</span> res;
+}
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
+{
+    <span class="keyword">struct</span> file_system_type **p;
+    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
+        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
+            <span class="keyword">break</span>;
+    <span class="keyword">return</span> p;
+}
+</code></pre><p>注册之后的 file_systems 链表结构如下图所示：</p>
+<p><img src="/img/vfs_tree_1.gif" alt="vfs_tree_1"> </p>
+
+
+<h2 id="VFS根目录建立">VFS根目录建立</h2>
+<p>init_mount_tree() 函数会调用 do_kern_mount(“rootfs”, 0, “rootfs”, NULL) 来挂载前面已经注册了的 rootfs 文件系统。这看起来似乎有点奇怪，因为根据前面的说法，似乎是应该先有挂载目录，然后再在其上挂载相应的文件系统，然而此时 VFS 似乎并没有建立其根目录。没关系，这是因为这里我们调用的是 do_kern_mount()，这个函数内部自然会创建我们最关心也是最关键的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</p>
+<h3 id="命名空间">命名空间</h3>
+<p>每个进程可拥有自己的已安装文件树——叫做进程的命名空间（namespace）。<br>对于每一个进程都有自己的namespace，这可以理解为这个进程的地盘。在这里，所有的文件系统都要挂上来统一管理。<br>通常大多数进程共享一个命名空间，即位于系统的根文件系统且被init进程使用的已安装文件系统树。<br>不过如果clone()系统调用以CLONE_NEWNS标志创建一个新进程，那么进程将获取一个新的命名空间，这个新的命名空间随后由子进程继承（如果父进程没有以CLONE_NEWNS标志创建这些进程）。</p>
+<pre><code><span class="keyword">struct</span> <span class="class"><span class="keyword">namespace</span> </span>{
+    atomic_t                count;        <span class="comment">/* 引用计数 */</span>
+    <span class="keyword">struct</span> vfsmount *        root;        <span class="comment">/* 根目录的 vfsmount */</span>
+    <span class="keyword">struct</span> list_head        list;         <span class="comment">/* 所有已mount的文件系统都挂载这链表上 */</span>
+    wait_queue_head_t poll;
+    <span class="keyword">int</span> event;
+};
+</code></pre><h3 id="vfsmount">vfsmount</h3>
+<p>已安装文件系统描述符vfsmount。<br>对于每一个命名空间，所有属于此命名空间的已安装的文件系统描述符形成了一个双向循环链表。<br>下图vfs_tree_1，namespace结构的list字段存放链表的头，vfsmount描述符的mnt_list字段包含链表中指向相邻元素的指针。</p>
+<p><img src="/img/vfs_tree_2.gif" alt="vfs_tree_2" width="800" height="400"> </p>
+
+<h3 id="建立根目录">建立根目录</h3>
+<p>在初始化阶段是如何建立根结点的，即 “/“目录。这其中会包括挂载 rootfs 文件系统到根目录 “/“ 的具体过程。<br>构造根目录的代码是在 init_mount_tree函数中。</p>
+<ol>
+<li>init_mount_tree()函数会调用do_kern_mount(“rootfs”, 0, “rootfs”, NULL)来挂载前面已经注册了的 rootfs 文件系统。</li>
+<li>do_kern_mount()函数内部创建VFS的根目录(在 Linux 中，目录对应的数据结构是 struct dentry)。</li>
+</ol>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span> __init init_mount_tree(<span class="keyword">void</span>)
+{
+    <span class="keyword">struct</span> vfsmount *mnt;
+    <span class="keyword">struct</span> <span class="keyword">namespace</span> *<span class="keyword">namespace</span>;
+    <span class="keyword">struct</span> task_struct *g, *p;
+
+    <span class="comment">//do_kern_mount函数主要作用：</span>
+    <span class="comment">//1.在内存里申请了一块该类型的内存空间（struct vfsmount *mnt），并初始化其部分成员变量</span>
+    <span class="comment">//2.调用rootfs-&gt;get_sb_nodev函数在内存中分配一个超级块结构 (struct super_block) sb，</span>
+    <span class="comment">//  并初始化其部分成员变量,将成员s_instances插入到rootfs中的fs_supers指向的双向链表中</span>
+    <span class="comment">//3.调用rootfs-&gt;get_sb_nodev-&gt;fill_super-&gt;simple_fill_super函数:</span>
+    <span class="comment">//  在内存中分配了一个inode (struct inode) ，并初始化其部分成员变量（i_op、i_fop等)</span>
+    <span class="comment">//  还有生成根目录dentry。root = d_alloc_root(inode);</span>
+    mnt = do_kern_mount(<span class="string">"rootfs"</span>, <span class="number">0</span>, <span class="string">"rootfs"</span>, NULL);
+    <span class="keyword">if</span> (IS_ERR(mnt))
+        panic(<span class="string">"Can't create rootfs"</span>);
+    <span class="comment">//在内存里申请命名空间</span>
+    <span class="keyword">namespace</span> = kmalloc(<span class="keyword">sizeof</span>(*<span class="keyword">namespace</span>), GFP_KERNEL);
+    <span class="keyword">if</span> (!<span class="keyword">namespace</span>)
+        panic(<span class="string">"Can't allocate initial namespace"</span>);
+    atomic_set(&amp;<span class="keyword">namespace</span>-&gt;count, <span class="number">1</span>);
+    INIT_LIST_HEAD(&amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+    init_waitqueue_head(&amp;<span class="keyword">namespace</span>-&gt;poll);
+    <span class="keyword">namespace</span>-&gt;event = <span class="number">0</span>;
+    <span class="comment">//如上图vfs_tree_1所示，把mnt_list挂在到namespace-&gt;list上</span>
+    list_add(&amp;mnt-&gt;mnt_list, &amp;<span class="keyword">namespace</span>-&gt;<span class="built_in">list</span>);
+    <span class="keyword">namespace</span>-&gt;root = mnt;
+    mnt-&gt;mnt_namespace = <span class="keyword">namespace</span>;
+
+    <span class="comment">//为系统最开始的进程(即init_task进程)准备它的进程数据块中的namespace</span>
+    <span class="comment">//将mnt和dentry信息记录在了init_task进程的进程数据块中，</span>
+    <span class="comment">//这样所有以后从init_task进程fork出来的进程也都先天地继承了这一信息</span>
+    init_task.<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+    read_lock(&amp;tasklist_lock);
+    do_each_thread(g, p) {
+        get_namespace(<span class="keyword">namespace</span>);
+        p-&gt;<span class="keyword">namespace</span> = <span class="keyword">namespace</span>;
+    } while_each_thread(g, p);
+    read_unlock(&amp;tasklist_lock);
+
+    <span class="comment">//下面两行就是把mnt和dentry信息记录在了当前进程的 fs结构中</span>
+    <span class="comment">//namespace-&gt;root指向roofs的vfsmount</span>
+    <span class="comment">//namespace-&gt;root-&gt;mnt_root指向根目录dentry</span>
+    set_fs_pwd(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+    set_fs_root(current-&gt;fs, <span class="keyword">namespace</span>-&gt;root, <span class="keyword">namespace</span>-&gt;root-&gt;mnt_root);
+}
+</code></pre><p>函数init_mount_tree调用完毕后，结构如下图：</p>
+<p><img src="/img/vfs_tree_3.gif" alt="vfs_tree_3" width="800" height="400"> </p>
+
+
+<p>一旦VFS目录树建立，就可以通过系统调用sys_mkdir在这棵树上建立新的叶子节点等。<br>VFS目录树中各目录的主要用途是为以后挂载文件系统提供挂载点，所以将rootfs文件系统挂载到了这棵树的根目录上，而真正的文件操作还是要通过挂载后的文件系统提供的功能接口来进行。</p>
+<h2 id="VFS建立新目录">VFS建立新目录</h2>
+<p>VFS目录树建立，就可以通过系统调用sys_mkdir在这棵树上建立新的叶子节点等。<br>下面我们用一个实际例子来看看Linux是如何在 VFS 的根目录下建立一个新的目录 “/dev” 的。</p>
+<h3 id="sys_mkdir">sys_mkdir</h3>
+<p>系统调用sys_mkdir(“/dev/“, 0700)-&gt;do_path_lookup</p>
+<pre><code>asmlinkage <span class="keyword">long</span> sys_mkdir(<span class="keyword">const</span> <span class="keyword">char</span> __user *pathname, <span class="keyword">int</span> mode)
+{
+    <span class="keyword">return</span> sys_mkdirat(AT_FDCWD, pathname, mode);
+}
+
+
+<span class="keyword">struct</span> nameidata {
+    <span class="keyword">struct</span> dentry    *dentry;
+    <span class="keyword">struct</span> vfsmount *mnt;
+    <span class="keyword">struct</span> qstr last;
+    <span class="keyword">unsigned</span> <span class="keyword">int</span> flags;
+    <span class="keyword">int</span>        last_type;
+    <span class="keyword">unsigned</span>    depth;
+    <span class="keyword">char</span> *saved_names[MAX_NESTED_LINKS + <span class="number">1</span>];
+
+    <span class="comment">/* Intent data */</span>
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> open_intent open;
+    } intent;
+};
+
+asmlinkage <span class="keyword">long</span> sys_mkdirat(<span class="keyword">int</span> dfd, <span class="keyword">const</span> <span class="keyword">char</span> __user *pathname, <span class="keyword">int</span> mode)
+{
+    <span class="keyword">int</span> error = <span class="number">0</span>;
+    <span class="keyword">char</span> * tmp;
+
+    tmp = getname(pathname);
+    error = PTR_ERR(tmp);
+    <span class="keyword">if</span> (!IS_ERR(tmp)) {
+        <span class="keyword">struct</span> dentry *dentry;
+        <span class="keyword">struct</span> nameidata nd;
+
+        error = do_path_lookup(dfd, tmp, LOOKUP_PARENT, &amp;nd);
+        <span class="keyword">if</span> (error)
+            <span class="keyword">goto</span> <span class="keyword">out</span>;
+        dentry = lookup_create(&amp;nd, <span class="number">1</span>);
+        error = PTR_ERR(dentry);
+        <span class="keyword">if</span> (!IS_ERR(dentry)) {
+            <span class="keyword">if</span> (!IS_POSIXACL(nd<span class="variable">.dentry</span>-&gt;d_inode))
+                mode &amp;= ~current-&gt;fs-&gt;umask;
+            error = vfs_mkdir(nd<span class="variable">.dentry</span>-&gt;d_inode, dentry, mode);
+            dput(dentry);
+        }
+        mutex_unlock(&amp;nd<span class="variable">.dentry</span>-&gt;d_inode-&gt;i_mutex);
+        path_release(&amp;nd);
+<span class="keyword">out</span>:
+        putname(tmp);
+    }
+
+    <span class="keyword">return</span> error;
+}
+</code></pre><p>参考文档：</p>
+<ol>
+<li><a href="http://www.ibm.com/developerworks/cn/linux/l-vfs/" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/linux/l-vfs/</a></li>
+</ol>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="VFS目录树">VFS目录树</h1>
+<p>系统初始化期间，Linux 都首先要在内存当中构造一棵VFS的目录树，实际上便是在内存中建立相应的数据结构。</p>
+<h2 id="文件系统注册">文件系统注册</h2>
+<p>在 Linux 源代码中，每种实际的文]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Merge Sort]]></title>
+    <link href="http://don7hao.github.com/2015/01/30/algorithm/merge_sort/"/>
+    <id>http://don7hao.github.com/2015/01/30/algorithm/merge_sort/</id>
+    <published>2015-01-30T08:45:07.000Z</published>
+    <updated>2015-02-04T08:23:57.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="​归并排序">​归并排序</h1>
+<p>归并排序有两种实现方式：自底向上和自顶向下</p>
+<h2 id="自底向上">自底向上</h2>
+<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" width="400" height="200"> </p>
+
+
+<h3 id="自底向上的基本思想">自底向上的基本思想</h3>
+<p>第1趟归并排序时，将待排序的文件R[1..n]看作是n个长度为1的有序子文件，将这些子文件两两归并，若n为偶数，则得到 个长度为2的有序子文件；若n为奇数，则最后一个子文件轮空(不参与归并)。故本趟归并完成后，前 个有序子文件长度为2，但最后一个子文件长度仍为1；</p>
+<p>第2趟归并则是将第1趟归并所得到的 个有序的子文件两两归并，如此反复，直到最后得到一个长度为n的有序文件为止。<br>上述的每次归并操作，均是将两个有序的子文件合并成一个有序的子文件，故称其为”二路归并排序”。类似地有k(k&gt;2)路归并排序。</p>
+<h3 id="代码">代码</h3>
+<blockquote>
+<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+</blockquote>
+<h2 id="自顶向下">自顶向下</h2>
+<p>采用分治法进行自顶向下的算法设计，形式更为简洁。</p>
+<p><img src="/img/merge_sort_td.png" alt="merge_sort_td" width="600" height="200"> </p>
+
+
+<h3 id="自顶向下的基本思想:">自顶向下的基本思想:</h3>
+<p>设归并排序的当前区间是R[low..high]，分治法的三个步骤是：<br>①分解：将当前区间一分为二，即求分裂点<br>        mid = (low+high)/2(向下取整)<br>②求解：递归地对两个子区间R[low..mid]和R[mid+1..high]进行归并排序；<br>③组合：将已排序的两个子区间R[low..mid]和R[mid+1..high]归并为一个有序的区间R[low..high]。<br>递归的终结条件：子区间长度为1（一个记录自然有序）。</p>
+<h3 id="代码-1">代码</h3>
+<blockquote>
+<p><a href="https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/merge_sort.c</a></p>
+</blockquote>
+<h2 id="算法分析">算法分析</h2>
+<p>1.稳定性<br>归并排序是一种稳定的排序。</p>
+<p>2.存储结构要求<br>可用顺序存储结构。也易于在链表上实现。</p>
+<p>3.时间复杂度<br>对长度为n的文件，需进行lgn趟二路归并，每趟归并的时间为O(n)，故其时间复杂度无论是在最好情况下还是在最坏情况下均是O(nlgn)。</p>
+<p>4.空间复杂度<br>需要一个辅助向量来暂存两有序子文件归并的结果，故其辅助空间复杂度为O(n)，显然它不是就地排序。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="​归并排序">​归并排序</h1>
+<p>归并排序有两种实现方式：自底向上和自顶向下</p>
+<h2 id="自底向上">自底向上</h2>
+<p><img src="/img/merge_sort_dt.png" alt="merge_sort_dt" widt]]>
+    </summary>
+    
+      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[VFS-Virtual File System in Linux]]></title>
+    <link href="http://don7hao.github.com/2015/01/29/kernel/vfs_init/"/>
+    <id>http://don7hao.github.com/2015/01/29/kernel/vfs_init/</id>
+    <published>2015-01-29T08:45:07.000Z</published>
+    <updated>2015-02-09T03:39:43.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="VFS_">VFS </h1>
+<p>VFS:Virtual File System虚拟文件系统或Virtual File Switch虚拟文件转换/开关。</p>
+<h2 id="什么是VFS">什么是VFS</h2>
+<p>VFS是Linux和UNIX文件系统中采用的一种技术机制，旨在一个操作系统中支持多个不同类型的文件系统。</p>
+<p>VFS是一种软件机制，也称它为Linux 的文件系统管理者更确切点，与它相关的数据结构只存在于物理内存当中。所以在每次系统初始化期间，Linux都首先要在内存当中构造一棵VFS的目录树(在Linux的源代码里称之为namespace)，实际上便是在内存中建立相应的数据结构。</p>
+<p>VFS是操作系统内核中这样一组数据结构与子程序的集合，它位于操作系统系统调用界面与具体类型文件系统之间，负责：</p>
+<ol>
+<li>记录操作系统中可以支持和已经安装有哪些文件系统类型，</li>
+<li>将相关系统调用转换为对具体类型文件系统的调用，</li>
+<li>负责不同类型文件系统间的协同工作(例如跨FS复制)，</li>
+<li>实现对不同类型文件系统的动态装卸和可扩充性等。</li>
+</ol>
+<p>通过以上功能，VFS:</p>
+<ol>
+<li>向用户、应用程序、和操作系统其他部件提供了一个通用的、统一的、标准的、抽象的、虚拟的系统调用接口界面(所以称Virtual)</li>
+<li>对以上应用程序等掩盖不同类型文件系统的差异和细节</li>
+<li>为以上应用程序等提供了对具体文件系统类型的程序独立性和透明性。</li>
+</ol>
+<blockquote>
+<p>例如，当用户程序AP1在两次运行中分别读EXT2、NTFS文件，都使用同样的read(…)系统调用函数,程序AP1不必改变</p>
+</blockquote>
+<p>图vfs_1：</p>
+<p><img src="/img/vfs_1.png" alt="vfs_1" width="800" height="400"> </p>
+
+
+<h2 id="对象类型">对象类型</h2>
+<p>VFS包含一下几个对象类型</p>
+<p><img src="/img/vfs_2.png" alt="vfs_2" width="800" height="400"> </p>
+
+<h3 id="superblock">superblock</h3>
+<p>超级块，是文件系统最基本的元数据(data about data).<br>存储已挂载的文件系统信息。比如基于磁盘的文件系统，superblock就是存储在磁盘上的控制块。</p>
+<h4 id="struct_super_block">struct super_block</h4>
+<p>所有的超级块对象都是以双向链表的形式连接在一起。</p>
+<pre><code>struct super_block {
+    struct list_head    s_list;        /<span class="keyword">*</span> Keep this first，指向相邻的元素 <span class="keyword">*</span>/
+    /<span class="keyword">*</span> 表示超级块(在内存中)是否是脏数据（若脏，磁盘上的数据需要更新） <span class="keyword">*</span>/
+    unsigned char        s_dirt;
+    ......
+    /<span class="keyword">*</span> 同步superblock的相关操作集 <span class="keyword">*</span>/
+    struct super_operations    <span class="keyword">*</span>s_op;
+    ......
+
+    /<span class="keyword">*</span> 指向文件系统superblock，比如s_fs_info指向ext2_sb_info结构 <span class="keyword">*</span>/
+    void             <span class="keyword">*</span>s_fs_info;    /<span class="keyword">*</span> Filesystem private info <span class="keyword">*</span>/
+    ......
+};
+</code></pre><h4 id="超级块的操作函数">超级块的操作函数</h4>
+<p>超级块的操作函数，由super_operations结构体表示，定义在linux/fs.h中，如下：<br>创建，管理和销毁超级块对象的代码位于文件fs/super.c中，超级块对象通过alloc_super()函数创建并初始化。<br>在文件系统安装时，内核会调用该函数以便从磁盘读取文件系统超级块，并且将其信息填充到内存中的超级块对象中。</p>
+<pre><code><span class="keyword">int</span> (*write_inode) (<span class="keyword">struct</span> inode *, <span class="keyword">int</span>);
+</code></pre><p>当文件系统需要对其超级块执行操作时，首先要在超级块对象中寻找需要的操作方法。</p>
+<blockquote>
+<p>比如一个文件系统要写自己的超级块，需要调用：sb-&gt;s_op-&gt;write_super(sb)这里的sb是指向文件系统超级块的指针，沿着该指针进入超级块操作函数表，并从表中取得希望得到的write_super()函数，该函数执行写入超级块的实际操作。</p>
+</blockquote>
+<h3 id="inode">inode</h3>
+<p>存储文件的大体信息。对基于磁盘的文件系统，inode就是存储在磁盘上的文件控制块。</p>
+<blockquote>
+<p>inode中不存储文件的名字，每个inode有一个inode number(i节点号)，一个inode number能够唯一地标识一个文件。</p>
+</blockquote>
+<h4 id="struct_inode">struct inode</h4>
+<p>文件系统处理文件所需要的所有信息都放在struct inode里，文件名可以随时更改，但是索引节点号对文件是唯一的，并且文件消失节点才消失。struct inode 定义在linux/fs.h中。</p>
+<pre><code><span class="keyword">unsigned</span> <span class="keyword">long</span>        i_state;
+</code></pre><p>如果i_state字段的值等于I_DIRTY_SYNC,<br>    I_DIRTY_DATASYNC或I_DIRTY_PAGES,该索引节点就是<strong>脏</strong>的，对应的磁盘索引节点需要被更新。</p>
+<p>每个索引节点对象总是出现在下列双向循环链表的某个链表中(所有情况下，指向相邻元素的指针存放在i_list字段中)：</p>
+<ol>
+<li>有效未使用的索引节点链表，典型的如那些镜像有效的磁盘索引节点，且当前未被任何进程使用。这些索引节点不为脏，且它们的i_count字段置为0。链表中的首元素和尾元素是由变量inode_unused的next字段和prev字段分别指向的。这个链表用作磁盘高速缓存。</li>
+<li>正在使用的索引节点链表，也就是那些镜像有效的磁盘索引节点，且当前被某些进程使用。这些索引节点不为脏，但它们的i_count字段为正数。链表中的首元素和尾元素是由变量inode_in_use引用的。</li>
+<li>脏索引节点的链表。链表中的首元素和尾元素是由相应超级块对象的s_dirty字段引用的。</li>
+</ol>
+<p>此外，每个索引节点对象也包含在每个文件系统的双向循环链表中，链表的头存放在超级块对象的<strong>s_inodes字段</strong>中；索引节点对象的<strong>i_sb_list字段</strong>存放了指向链表相邻元素的指针。</p>
+<pre><code><span class="class"><span class="keyword">struct</span> <span class="title">super_block</span> </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    s_inodes;    /* all inodes */
+}
+struct inode </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>    i_sb_list;
+}</span>
+</code></pre><p>最后，索引节点对象也存放在一个称为inode_hashtable的散列表中。散列表加快了对索引节点对象的搜索，前提是系统内核要知道索引节点号及文件所在文件系统对应的超级块对象的地址。<br>由于散列技术可能引发冲突，所以索引节点对象包含一个<strong>i_hash字段</strong>，该字段中包含向前和向后的两个指针，分别指向散列到同一地址的前一个索引节点和后一个索引节点；该字段因此创建了由这些索引节点组成的一个双向链表。</p>
+<pre><code><span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span>    i_hash;
+struct hlist_node </span>{
+    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span> *next, **pprev;
+};</span>
+</code></pre><h4 id="索引节点操作">索引节点操作</h4>
+<pre><code><span class="keyword">struct</span> inode_operations    *i_op;
+<span class="keyword">struct</span> inode_operations {
+    <span class="comment">//create():创建一个新的磁盘索引结点。</span>
+    <span class="keyword">int</span> (*create) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *,<span class="keyword">int</span>, <span class="keyword">struct</span> nameidata *);
+    <span class="comment">//lookup():查诈一个索引结点所在的目录。</span>
+    <span class="keyword">struct</span> dentry * (*lookup) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *, <span class="keyword">struct</span> nameidata *);
+    ......
+    <span class="comment">//mkdir():为目录项创建一个新的索引结点。</span>
+    <span class="keyword">int</span> (*mkdir) (<span class="keyword">struct</span> inode *,<span class="keyword">struct</span> dentry *,<span class="keyword">int</span>);
+    ......
+};
+</code></pre><h3 id="file">file</h3>
+<p>存储一个进程与一个被该进程打开的文件之间交互的信息。该信息只存在内核内存中且当该进程拥有这个文件时。<br>同一个进程可以多次打开同一个文件而得到多个不同的file结构，file结构描述被打开文件的属性，如文件的当前偏移量等信息。</p>
+<pre><code><span class="keyword">struct</span> file {
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> list_head    fu_list;
+        <span class="keyword">struct</span> rcu_head     fu_rcuhead;
+    } f_u;
+    <span class="comment">//与文件相关的目录项对象</span>
+    <span class="keyword">struct</span> dentry        *f_dentry;
+    <span class="comment">//含有该文件的已安装文件系统</span>
+    <span class="keyword">struct</span> vfsmount         *f_vfsmnt;
+    <span class="keyword">const</span> <span class="keyword">struct</span> file_operations    *f_op;
+    <span class="comment">//文件对象的引用计数器</span>
+    atomic_t        f_count;
+    <span class="comment">//当打开文件时所指定的标志</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span>         f_flags;
+    <span class="comment">//进程访问模式</span>
+    mode_t            f_mode;
+    <span class="comment">//当前文件位移量（文件指针）</span>
+    loff_t            f_pos;
+    <span class="comment">//通过信号进行I/O事件通知的数据</span>
+    <span class="keyword">struct</span> fown_struct    f_owner;
+    <span class="comment">//用户UID和GID</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span>        f_uid, f_gid;
+    ......
+};
+</code></pre><p>存放在文件对象中的主要信息是文件指针f_pos，即文件中当前的位置，下一个操作将在该位置发生。由于几个进程可能同时访问同一文件，因此文件指针必须存放在文件对象而不是索引节点对象中。</p>
+<p>文件对象的f_count字段是一个引用计数器：它记录使用文件对象的进程数（记住，以CLONE_FILES标志创建的轻量级进程共享打开文件表，因此它们可以使用相同的文件对象）。当内核本身使用该文件对象时也要增加计数器的值——例如，<strong>把对象插入链表中或发出dup()系统调用时</strong>。</p>
+<h4 id="file操作">file操作</h4>
+<p>内核将一个索引节点从磁盘装入内存时，就会把指向这些文件操作的指针存放在file_operations结构中，而该结构的地址存放在该索引节点对象的i_fop字段中。当进程打开这个文件时，VFS就用存放在索引节点中的这个地址初始化新文件对象的fop字段，使得对文件操作的后续调用能够使用这些函数。</p>
+<h3 id="dentry_(目录块)">dentry (目录块)</h3>
+<p>VFS把每个目录看作由若干子目录和文件组成的一个普通文件。然而目录项不同，一旦目录项被读人内存，VFS就把它转换成基于dentry结构的一个目录项对象。对于进程查找的路径名中的每个分量，内核都为其创建一个目录项对象；目录项对象将每个分量与其对应的索引节点相联系。例如，在查找路名/tmp/test时，内核为根目录“/“创建一个目录项对象，为根目录下的tmp项创建一个第二级目录项对象，为/tmp目录下的test项创建一个第三级目录项对象。</p>
+<blockquote>
+<p>目录就是文件，比如/bin/ls,bin和ls都是文件，bin是一个目录文件，ls是一个普通文件。</p>
+<p>两个不同的file结构可以对应同一个dentry结构。进程多次打开同一个文件时，对应的只有一个dentry结构。</p>
+<p>目录项对象在磁盘上并没有对应的映像，因此在dentry结构中不包含指出该对象已被修改的字段。目录项对象存放在名为dentry_cache的slab分配器高速缓存中。因此，目录项对象的创建和删除是通过调用kmem_cache_alloc()和kmem_cache_free()实现的。</p>
+</blockquote>
+<pre><code><span class="keyword">struct</span> dentry {
+    atomic_t d_count;
+    <span class="keyword">struct</span> inode *d_inode;        <span class="comment">/* Where the name belongs to - NULL is* negative */</span>
+    .......
+};
+</code></pre><p>每个目录项对象可以处于以下四种状态之一：</p>
+<ol>
+<li>空闲状态（free）：处于该状态的目录项对象不包括有效的信息，且还没有被VFS使用。对应的内存区由slab分配器进行处理。</li>
+<li>未使用状态（unused）：处于该状态的目录项对象当前还没有被内核使用。该对象的引用计数器d_count的值为0，但其d_inode字段仍然指向关联的索引节点。该目录项对象包含有效的信息，但为了在必要时回收内存，它的内容可能被丢弃。</li>
+<li>正在使用状态（in use）：处于该状态的目录项对象当前正在被内核使用。该对象的引用计数器d_count的值为正数，其d_inode字段指向关联的索引节点对象。该目录项对象包含有效的信息，并且不能被丢弃。</li>
+<li>负状态（negative）：与目录项关联的索引节点不复存在，那是因为相应的磁盘索引节点已被删除，或者因为目录项对象是通过解析一个不存在文件的路径名创建的。目录项对象的d_inode字段被置为NULL，但该对象仍然被保存在目录项高速缓存中，以便后续对同一文件目录名的查找操作能够快速完成。术语“负状态”容易使人误解，因为根本不涉及任何负值。</li>
+</ol>
+<h4 id="dentry_操作">dentry 操作</h4>
+<pre><code>struct dentry_operations {
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 在把目录项对象转换为一个文件路径名之前，判定该目录项对象是否仍然有效。
+     <span class="keyword">*</span> 缺省的VFS函数什么也不做，而网络文件系统可以指定自己的函数。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_revalidate)(struct dentry <span class="keyword">*</span>, struct nameidata <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 生成一个散列值；这是用于目录项散列表的、特定干具体文件系统的散列函数。
+     <span class="keyword">*</span> 参数dentry标识包含路径分量的目录。参数name指向一个结构，
+     <span class="keyword">*</span> 该结构包含要查找的路径名分量以及由散列函数生成的散列值。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_hash) (struct dentry <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>);
+    /<span class="keyword">*</span> 比较两个文件名。name1应该属于dir所指的目录。
+     <span class="keyword">*</span> 缺省的VFS函数是常用的字符串匹配函数。
+     <span class="keyword">*</span> 不过，每个文件系统可用自己的方式实现这一方法。
+     <span class="keyword">*</span> 例如，MS.DOS文件系统不区分大写和小写字母。
+     <span class="keyword">*</span><span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_compare) (struct dentry <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>, struct qstr <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 当对目录项对象的最后一个引用被删除（d_count变为“0”）时，
+     <span class="keyword">*</span> 调用该方法。缺省的VFS函数什么也不做。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    int (<span class="keyword">*</span>d_delete)(struct dentry <span class="keyword">*</span>);
+    /<span class="keyword">*</span> 当要释放一个目录项对象时（放入slab分配器），调用该方法。
+     <span class="keyword">*</span> 缺省的VFS函数什么也不做。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    void (<span class="keyword">*</span>d_release)(struct dentry <span class="keyword">*</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 当一个目录项对象变为“负”状态（即丢弃它的索引节点）时，调用该方法。
+     <span class="keyword">*</span> 缺省的VFS函数调用iput()释放索引节点对象。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    void (<span class="keyword">*</span>d_iput)(struct dentry <span class="keyword">*</span>, struct inode <span class="keyword">*</span>);
+};
+</code></pre><h4 id="目录项高级缓存">目录项高级缓存</h4>
+<p>为了最大限度地提高处理同一个文件需要被反复访问的这些目录项对象的效率，Linux使用目录项高速缓存，它由两种类型的数据结构组成：</p>
+<ol>
+<li>一个处于正在使用、未使用或负状态的目录项对象的集合。</li>
+<li>一个散列表，从中能够快速获取与给定的文件名和目录名对应的目录项对象。同样，如果访问的对象不在目录项高速缓存中，则散列表函数返回一个空值。</li>
+</ol>
+<p>目录项高速缓存的作用还相当于索引节点高速缓存(inode cache)的控制器。在内核内存中，并不丢弃与未用目录项相关的索引节点，这是由于目录项高速缓存仍在使用它们。因此，这些索引节点对象保存在RAM中，并能够借助相应的目录项快速引用它们。</p>
+<pre><code><span class="keyword">struct</span> list_head d_lru;        <span class="comment">/* LRU list */</span>
+</code></pre><p>所有“未使用”目录项对象都存放在一个“最近最少使用(Least Recently used,LRU)”的双向链表中，该链表按照插入的时间顺序。换句话说，<strong>最后释放的目录项对象放在链表的首部，所以最近最少使用的目录项对象总是靠近链表的尾部。一旦目录项高速缓存的空间开始变小，内核就从链表的尾部删除元素，使得最近最常使用的对象得以保留</strong>。</p>
+<h2 id="与进程相关的文件">与进程相关的文件</h2>
+<p>每个进程都有它自己当前的工作目录和它自己的根目录。这仅仅是内核用来表示进程与文件系统相互作用所必须维护的数据中的两个列子。类型为fs_struct的数据结构就用于此目的，且每个进程描述的fs字段就指向进程的fs_struct结构。</p>
+<h3 id="fs_struct">fs_struct</h3>
+<pre><code><span class="keyword">struct</span> fs_struct {
+    atomic_t count; <span class="comment">//共享这个表的进程个数</span>
+    rwlock_t <span class="keyword">lock</span>;  <span class="comment">//用于表中字段的读/写自旋锁</span>
+    <span class="comment">//当打开文件设置文件权限时所使用的位掩码</span>
+    <span class="keyword">int</span> umask;
+    <span class="comment">//根目录，当前目录，模拟根目录的目录项</span>
+    <span class="keyword">struct</span> dentry * root, * pwd, * altroot;
+    <span class="comment">//根目录锁安装的文件系统对象</span>
+    <span class="comment">//当前目录所安装的文件系统对象</span>
+    <span class="comment">//模拟目录所安装的文件系统对象(在80x86结构上始终为NULL)</span>
+    <span class="keyword">struct</span> vfsmount * rootmnt, * pwdmnt, * altrootmnt;
+};
+</code></pre><h3 id="files_struct">files_struct</h3>
+<pre><code><span class="keyword">struct</span> fdtable {
+    <span class="comment">//文件对象的当前最大数目</span>
+    <span class="keyword">unsigned</span> <span class="keyword">int</span> max_fds;
+    <span class="comment">//文件描述符的当前最大数目</span>
+    <span class="keyword">int</span> max_fdset;
+    <span class="comment">//指向文件对象指针数组的指针</span>
+    <span class="keyword">struct</span> file ** fd;      <span class="comment">/* current fd array */</span>
+    <span class="comment">//指向执行exec()时需要关闭的文件描述符指针</span>
+    fd_set *close_on_exec;
+    <span class="comment">//指向打开文件描述符的指针</span>
+    fd_set *open_fds;
+    <span class="keyword">struct</span> rcu_head rcu;
+    <span class="keyword">struct</span> files_struct *free_files;
+    <span class="keyword">struct</span> fdtable *next;
+};
+
+<span class="keyword">struct</span> files_struct {
+  <span class="comment">/*
+   * read mostly part
+   */</span>
+    <span class="comment">//共享该表的进程数目</span>
+    atomic_t count;
+    <span class="keyword">struct</span> fdtable *fdt;
+    <span class="keyword">struct</span> fdtable fdtab;
+  <span class="comment">/*
+   * written part on a separate cache line in SMP
+   */</span>
+    spinlock_t file_lock ____cacheline_aligned_in_smp;
+    <span class="keyword">int</span> next_fd;
+    <span class="comment">//执行exec()时需要关闭的文件描述符的初始集合</span>
+    <span class="keyword">struct</span> embedded_fd_set close_on_exec_init;
+    <span class="comment">//文件描述符的初始集合</span>
+    <span class="keyword">struct</span> embedded_fd_set open_fds_init;
+    <span class="comment">//文件对象指针的初始化数组</span>
+    <span class="keyword">struct</span> file * fd_array[NR_OPEN_DEFAULT];
+};
+</code></pre><p>fd域指向文件对象的指针数组。该数组的长度存放在max_fds域中。通常，fd域指向files_struct结构的fd_array域，该域包括32个文件对象指针。如果进程打开的文件数目多于32，内核就分配一个新的、更大的文件指针数组，并将其地址存放在fd域中；内核同时也更新max_fds域的值。</p>
+<p>对于在fd数组中有入口地址的每个文件来说，数组的索引就是文件描述符（file descriptor）。通常，数组的第一个元素（索引为0）是进程的标准输入文件，数组的第二个元素（索引为1）是进程的标准输出文件，数组的第三个元素（索引为2）是进程的标准错误文件（参见图8.3）。请注意，借助于dup(  )、dup2(  )和 fcntl(  ) 系统调用，两个文件描述符就可以指向同一个打开的文件，也就是说，数组的两个元素可能指向同一个文件对象。当用户使用shell结构（如2&gt;&amp;1）将标准错误文件重定向到标准输出文件上时，用户总能看到这一点。</p>
+<p><img src="/img/files_struct.png" alt="fd" width="1500" height="600"> </p>
+
+<p>当开始<strong>使用一个文件对象时调用内核提供的fget()函数</strong>。<br>当内核<strong>完成对文件对象的使用时，调用内核提供的fput()函数</strong>。</p>
+<h2 id="总体图">总体图</h2>
+<p><img src="/img/vfs_arch.jpg" alt="vfs结构图" width="1500" height="600"> </p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="VFS_">VFS </h1>
+<p>VFS:Virtual File System虚拟文件系统或Virtual File Switch虚拟文件转换/开关。</p>
+<h2 id="什么是VFS">什么是VFS</h2>
+<p>VFS是Linux和UNIX文件系统]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Quick Sort]]></title>
+    <link href="http://don7hao.github.com/2015/01/29/algorithm/quicksort/"/>
+    <id>http://don7hao.github.com/2015/01/29/algorithm/quicksort/</id>
+    <published>2015-01-29T08:45:07.000Z</published>
+    <updated>2015-02-02T03:32:32.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="QuickSort">QuickSort</h1>
+<p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p>
+<p>2.重新排序數列，所有元素比基准值小的放在基准前面，所有元素比值基准大的放在基准的後面（相同的數可以到任一边）。<br>在这个分割结束之后，該基准就位于数列的中间位置。</p>
+<p>3.递归地（recursive）把小于基准的元素子队列和大于基准的元素的子队列排序。</p>
+<p>在平均狀況下，排序n個項目要Ο(n$\log{n}$)次比較。在最坏情况下需要Ο($n^2$)次比較。<br>事实上，快速排序通常明显比其他Ο(n$\log{n}$)算法更快，因為它的內部循环（inner<br>loop）可以在大部分的架构上很有效率地被实现出來。</p>
+<p>代码 1：</p>
+<pre><code>void quick_sort(char <span class="built_in">array</span>[], <span class="built_in">int</span> <span class="built_in">left</span>, <span class="built_in">int</span> <span class="built_in">right</span>)
+{
+
+    <span class="built_in">int</span> i, j;
+    char pivot;
+
+    <span class="keyword">if</span> (<span class="built_in">left</span> &lt; <span class="built_in">right</span>){
+        i = <span class="built_in">left</span>, j = <span class="built_in">right</span>+<span class="number">1</span>;
+        pivot = <span class="built_in">array</span>[<span class="built_in">left</span>];
+        <span class="keyword">while</span> (i &lt; j){
+            <span class="keyword">while</span> (pivot &gt; <span class="built_in">array</span>[++i]){
+            }
+
+            <span class="keyword">while</span> (pivot &lt; <span class="built_in">array</span>[--j]){
+            }
+
+            <span class="keyword">if</span> (i &lt; j){
+                swap(&amp;<span class="built_in">array</span>[i], &amp;<span class="built_in">array</span>[j]);
+            }
+        }
+
+        swap(&amp;<span class="built_in">array</span>[<span class="built_in">left</span>], &amp;<span class="built_in">array</span>[j]);
+        quick_sort(<span class="built_in">array</span>, <span class="built_in">left</span>, j-<span class="number">1</span>);
+        quick_sort(<span class="built_in">array</span>, j+<span class="number">1</span>, <span class="built_in">right</span>);
+    }
+    return;
+}
+</code></pre><h2 id="快速排序的最坏情况">快速排序的最坏情况</h2>
+<p>在最壞狀況下則需要Ο($n^2$)比较。<br>最坏情况是每次划分选取的基准都是当前无序区中关键字最小(或最大)的记录，划分的结果是基准左边的子区间为空(或右边的子区间为空)，而划分所得的另一个非空的子区间中记录数目，仅仅比划分前的无序区中记录个数减少一个。<br>因此，快速排序必须做n-1次划分，第i次划分开始时区间长度为n-i+1，所需的比较次数为n-i(1≤i≤n-1)，故总的比较次数达到最大值：</p>
+<blockquote>
+<p>Cmax = n(n-1)/2=O($n^2$)</p>
+</blockquote>
+<p>如果按上面给出的划分算法，每次取当前无序区的第1个记录为基准，那么当文件的记录已按递增序(或递减序)排列时，每次划分所取的基准就是当前无序区中关键字最小(或最大)的记录，则快速排序所需的比较次数反而最多。<br>基准的选择影响了算法的性能。</p>
+<h2 id="基准的选择">基准的选择</h2>
+<p>在当前无序区中选取划分的基准关键字是决定算法性能的关键。</p>
+<h3 id="三者取中规则">三者取中规则</h3>
+<p>在当前区间里，将该区间首、尾和中间位置上的关键字比较，取三者之中值所对应的记录作为基准，在划分开始前将该基准记录和该区伺的第1个记录进行交换，此后的划分过程与上面所给的quick_sort算法完全相同。</p>
+<p>代码：</p>
+<pre><code>char <span class="type">Median3</span>(char <span class="type">A</span>[], int <span class="keyword">left</span>, int <span class="keyword">right</span> )
+{
+    int center = (<span class="keyword">left</span> + <span class="keyword">right</span>) / <span class="number">2</span>;
+    <span class="keyword">if</span> ( <span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[center])
+        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[center]);
+    <span class="keyword">if</span> (<span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[<span class="keyword">right</span>])
+        <span class="built_in">swap</span>( &amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[<span class="keyword">right</span>]);
+    <span class="keyword">if</span> ( <span class="type">A</span>[center] &gt; <span class="type">A</span>[<span class="keyword">right</span>] )
+        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">right</span>] );
+    <span class="comment">/* A[left] &lt;= A[center] &lt;= A[right] */</span>
+    <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">left</span>]); <span class="comment">/* 将pivot藏到右边 */</span>
+    <span class="keyword">return</span> <span class="type">A</span>[<span class="keyword">left</span>]; <span class="comment">/* 返回 pivot */</span>
+}
+</code></pre><h3 id="取随机数k(left≤k≤right)作为基准">取随机数k(left≤k≤right)作为基准</h3>
+<p>选取基准最好的方法是用一个随机函数产生一个取位于left和right之间的随机数k(left≤k≤right)，用R[k]作为基准，这相当于强迫R[left..right]中的记录是随机分布的。用此方法所得到的快速排序一般称为随机的快速排序。</p>
+<p>代码：</p>
+<pre><code><span class="type">int</span> get_random(<span class="type">char</span> A[], <span class="type">int</span> left,<span class="type">int</span> right)
+{
+    // 产生 left 和 right 之间的一个随机整数
+    <span class="type">int</span> <span class="literal">result</span> = left + rand()%(right - left + <span class="number">1</span>);
+    swap(&amp;A[<span class="literal">result</span>], &amp;A[left]); /* 将pivot藏到左边 */
+    <span class="keyword">return</span> A[left]; /* 返回 pivot */
+}
+</code></pre><p>完整代码：<br><a href="https://github.com/don7hao/algorithm/blob/master/sort/quick_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/quick_sort.c</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="QuickSort">QuickSort</h1>
+<p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p]]>
+    </summary>
+    
+      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[进程虚拟地址空间]]></title>
+    <link href="http://don7hao.github.com/2015/01/28/kernel/mm_struct/"/>
+    <id>http://don7hao.github.com/2015/01/28/kernel/mm_struct/</id>
+    <published>2015-01-28T08:45:07.000Z</published>
+    <updated>2015-02-05T09:19:18.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="mm_struct">mm_struct</h1>
+<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构。</p>
+<h2 id="虚拟地址空间分布">虚拟地址空间分布</h2>
+<p>主要包括栈,映射空间,堆,bss,数据段,代码段。</p>
+<p>[mmap]是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。<br>[start_code,　end_code]表示代码段的地址空间范围。<br>[start_data,　end_start]表示数据段的地址空间范围。<br>[start_brk,　brk]分别表示heap段的起始空间和当前的heap指针(brk)。<br>[start_stack,　end_stack]表示stack段的地址空间范围<br>[mmap_base]表示memory mapping的起始地址。</p>
+<p>kernel linux2.6.18</p>
+<pre><code><span class="keyword">struct</span> mm_struct {
+    ......
+    <span class="keyword">struct</span> vm_area_struct * mmap;        <span class="comment">/* list of VMAs */</span>
+    <span class="keyword">unsigned</span> <span class="keyword">long</span> mmap_base;        <span class="comment">/* base of mmap area */</span>
+    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_code, end_code, start_data, end_data;
+    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_brk, brk, start_stack;
+    ......
+};
+</code></pre><p><img src="/img/mm_struct_1.png" alt="mm_struct_1" width="800" height="400"> </p>
+
+<h2 id="VMA—虚拟内存区块">VMA—虚拟内存区块</h2>
+<p>每一个VMA是虚拟地址都是连续分布不会重叠，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块(比如共享库,数据段,代码段,stack, heap等)。见图mm_struct_2</p>
+<h3 id="vm_area_struct">vm_area_struct</h3>
+<p>vm_area_struct用来描述WMA，包括它的起始地址，结束地址，访问权限和行为等。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
+<pre><code>struct vm_area_struct <span class="keyword">*</span> mmap;        /<span class="keyword">*</span> list of VMAs <span class="keyword">*</span>/
+</code></pre><p>每个vm_area_struct存储着一个虚拟地址区块</p>
+<pre><code>struct vm_area_struct {
+    struct mm_struct <span class="keyword">*</span> vm_mm;    /<span class="keyword">*</span> 虚拟地址所在的地址空间 <span class="keyword">*</span>/
+    unsigned long vm_start;        /<span class="keyword">*</span> 在vm_mm中的起始地址　<span class="keyword">*</span>/
+    unsigned long vm_end;        /<span class="keyword">*</span> 在vm_mm中的结束地址　<span class="keyword">*</span>/
+
+    /<span class="keyword">*</span> linked list of VM areas per task, sorted by address <span class="keyword">*</span>/
+    struct vm_area_struct <span class="keyword">*</span>vm_next;　/<span class="keyword">*</span> 指向下一个 vm_area_struct <span class="keyword">*</span>/
+
+    pgprot_t vm_page_prot;        /<span class="keyword">*</span> Access permissions of this VMA. <span class="keyword">*</span>/
+    unsigned long vm_flags;        /<span class="keyword">*</span> Flags, listed below. <span class="keyword">*</span>/
+    struct vm_operations_struct <span class="keyword">*</span> vm_ops;
+    .....
+}
+</code></pre><p><img src="/img/mm_struct_2.png" alt="mm_struct_２" width="800" height="400"> </p>
+
+<h3 id="vm_operations_struct">vm_operations_struct</h3>
+<p>vm_area_struct中的vm_operations_struct结构描述操作虚拟内存区块的函数集。<br>比如，open、close 分别用于虚拟区块的打开、关闭，<br>而nopage 用于当虚存页面不在物理内存而引起的“缺页异常”时所应该调用的函数，<br>当 Linux 处理这一缺页异常时（请页机制），就可以为新的虚拟内存区分配实际的物理内存。</p>
+<pre><code><span class="keyword">struct</span> vm_operations_struct {
+    <span class="keyword">void</span> (*open)(<span class="keyword">struct</span> vm_area_struct * area);
+    <span class="keyword">void</span> (*close)(<span class="keyword">struct</span> vm_area_struct * area);
+    <span class="keyword">struct</span> page * (*nopage)(<span class="keyword">struct</span> vm_area_struct * area, <span class="keyword">unsigned</span> <span class="keyword">long</span> address, <span class="keyword">int</span> *type);
+    ......
+};
+</code></pre><p><img src="/img/mm_struct_3.png" alt="mm_struct_3" width="800" height="400"> </p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="mm_struct">mm_struct</h1>
+<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[红黑树]]></title>
+    <link href="http://don7hao.github.com/2015/01/28/algorithm/redblack/"/>
+    <id>http://don7hao.github.com/2015/01/28/algorithm/redblack/</id>
+    <published>2015-01-28T08:45:07.000Z</published>
+    <updated>2015-01-28T09:13:18.000Z</updated>
+    <content type="html"><![CDATA[]]></content>
+    <summary type="html">
+    <![CDATA[]]>
+    </summary>
+    
+      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[avl-自平衡二叉查找树]]></title>
+    <link href="http://don7hao.github.com/2015/01/28/algorithm/avl/"/>
+    <id>http://don7hao.github.com/2015/01/28/algorithm/avl/</id>
+    <published>2015-01-28T08:45:07.000Z</published>
+    <updated>2015-02-02T03:28:07.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="avl">avl</h1>
+<p>一种自平衡二叉查找树（self-balancing binary search tree）。<br>这种二叉查找树在插入和删除操作中，可以通过一系列的旋转操作来保持平衡，从而保证了二叉查找树的查找效率。<br>最终这种二叉查找树以他们的名字命名为“AVL-Tree”，它也被称为平衡二叉树（Balanced Binary Tree）。</p>
+<h2 id="平衡因子">平衡因子</h2>
+<p>为了保证平衡，AVL树中的每个结点都有一个平衡因子（balance factor，以下用BF表示），它表示这个结点的左、右子树的高度差，也就是左子树的高度减去右子树的高度的结果值。AVL树上所有结点的BF值只能是-1、0、1。反之，只要二叉树上一个结点的BF的绝对值大于1，则该二叉树就不是平衡二叉树。图1演示了平衡二叉树和非平衡二叉树。</p>
+<p><img src="/img/avl_1.png" alt="avl_1" width="600" height="200"> </p>
+
+<h2 id="旋转">旋转</h2>
+<p>AVL树的旋转一共有四种情形，注意所有旋转情况都是围绕着使得二叉树不平衡的第一个节点展开的。<br><strong>旋转就是一个圆圈的方向，逆时针或顺时针</strong></p>
+<h3 id="LL">LL</h3>
+<p>平衡二叉树某一节点的左孩子的左子树上插入一个新的节点，使得该节点不再平衡。这时只需要把树向右旋转一次即可，如图所示，原A的左孩子B变为父结点，A变为其右孩子，而原B的右子树变为A的左子树，注意旋转之后Brh是A的左子树（图上忘在A于Brh之间标实线）</p>
+<p><img src="/img/avl_2.png" alt="avl_2" width="300" height="100"> </p>
+
+<h3 id="RR">RR</h3>
+<p>平衡二叉树某一节点的右孩子的右子树上插入一个新的节点，使得该节点不再平衡。这时只需要把树向左旋转一次即可，如图所示，原A右孩子B变为父结点，A变为其左孩子，而原B的左子树Blh将变为A的右子树。</p>
+<p><img src="/img/avl_3.png" alt="avl_3" width="300" height="100"> </p>
+
+<h3 id="LR">LR</h3>
+<p>平衡二叉树某一节点的左孩子的右子树上插入一个新的节点，使得该节点不再平衡。这时需要旋转两次，仅一次的旋转是不能够使二叉树再次平衡。如图所示，在B节点按照RR型向左旋转一次之后，二叉树在A节点仍然不能保持平衡，这时还需要再向右旋转一次。</p>
+<p><img src="/img/avl_4.png" alt="avl_4" width="600" height="200"> </p>
+
+<h3 id="RL">RL</h3>
+<p>平衡二叉树某一节点的右孩子的左子树上插入一个新的节点，使得该节点不再平衡。同样，这时需要旋转两次，旋转方向刚好同LR型相反。</p>
+<p><img src="/img/avl_5.png" alt="avl_5" width="600" height="200"> </p>
+
+<h2 id="avl插入操作">avl插入操作</h2>
+<p>具体步骤如下：</p>
+<ol>
+<li><p>每当插入一个新结点，从该结点开始向上计算各结点的平衡因子，即计算该结点的祖先结点的平衡因子，若该结点的祖先结点的平衡因子的绝对值均不超过1，则平衡二叉树没有失去平衡，继续插入结点；</p>
+</li>
+<li><p>若插入结点的某祖先结点的平衡因子的绝对值大于1，则找出其中最小不平衡子树的根结点；</p>
+</li>
+<li><p>判断新插入的结点与最小不平衡子树的根结点的关系，确定是哪种类型的调整:<br> 当最小不平衡子树的根节点的BF值为2时：</p>
+<blockquote>
+<p>如果最小不平衡树的根节点的左孩子的BF值为1，则进行LL型旋转；<br>  如果最小不平衡树的根节点的左孩子的BF值为-1，则进行LR型旋转。</p>
+</blockquote>
+<p> 当最小不平衡子树根的BF值为-2时：</p>
+<blockquote>
+<p>如果最小不平衡树的根节点的右孩子的BF值为1，则进行RL型旋转；<br>  如果最小不平衡树的根节点的右孩子的BF值为-1，则进行RR型旋转。</p>
+</blockquote>
+</li>
+</ol>
+<blockquote>
+<p>如果是LL型或RR型，只需旋转一次，在旋转过程中，如果出现冲突，应用旋转优先原则调整冲突；<br>如果是LR型或LR型，则需旋转两次，第一次最小不平衡子树的根结点先不动，调整插入结点所在子树，<br>第二次再调整最小不平衡子树，在旋转过程中，如果出现冲突，应用旋转优先原则调整冲突；</p>
+</blockquote>
+<p>最后计算调整后的平衡二叉树中各结点的平衡因子，检验是否因为旋转而破坏其他结点的平衡因子，以及调整后的平衡二叉树中是否存在平衡因子大于1的结点。</p>
+<h3 id="RR插入">RR插入</h3>
+<p><img src="/img/avl_9.png" alt="avl_9" width="300" height="200"> </p>
+
+<p><img src="/img/avl_8.png" alt="avl_8" width="300" height="200"> </p>
+
+<h3 id="LR插入">LR插入</h3>
+<p><img src="/img/avl_7.png" alt="avl_7" width="300" height="200"> </p>
+
+<h3 id="RL插入">RL插入</h3>
+<p><img src="/img/avl_6.png" alt="avl_6" width="300" height="200"> </p>
+
+<h2 id="avl插入代码">avl插入代码</h2>
+<p><a href="https://github.com/don7hao/algorithm/tree/master/avl" target="_blank" rel="external">https://github.com/don7hao/algorithm/tree/master/avl</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="avl">avl</h1>
+<p>一种自平衡二叉查找树（self-balancing binary search tree）。<br>这种二叉查找树在插入和删除操作中，可以通过一系列的旋转操作来保持平衡，从而保证了二叉查找树的查找效率。<br>最终这种二叉查找树以]]>
+    </summary>
+    
+      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Python--函数式编程]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/python/2014-12-31-%E5%87%BD%E6%95%B0%E5%BC%8F%E7%BC%96%E7%A8%8B/"/>
+    <id>http://don7hao.github.com/2015/01/27/python/2014-12-31-函数式编程/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="什么是函数式编程">什么是函数式编程</h1>
+<p>函数式编程就是一种抽象程度很高的编程范式，纯粹的函数式编程语言编写的函数没有变量，因此，任意一个函数，只要输入是确定的，输出就是确定的，这种纯函数我们称之为没有副作用。而允许使用变量的程序设计语言，由于函数内部的变量状态不确定，同样的输入，可能得到不同的输出，因此，这种函数是有副作用的。<br>函数式编程的一个特点就是，允许把函数本身作为参数传入另一个函数，还允许返回一个函数！<br>把函数作为参数传入，或者把函数作为返回值返回，这样的函数称为高阶函数，函数式编程就是指这种高度抽象的编程范式。</p>
+<h2 id="匿名函数">匿名函数</h2>
+<p>关键字lambda表示匿名函数，冒号前面的x表示函数参数。<br>匿名函数有个限制，就是只能有一个表达式，不用写return，返回值就是该表达式的结果。<br>用匿名函数有个好处，因为函数没有名字，不必担心函数名冲突。匿名函数也是一个函数对象，也可以把匿名函数赋值给一个变量，再利用变量来调用该函数：</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">prod</span><span class="params">(x,y)</span>:</span>
+    <span class="keyword">return</span> <span class="keyword">lambda</span> x,y:x*y
+</code></pre><h2 id="闭包">闭包</h2>
+<p>闭包就是根据不同的配置信息得到不同的结果<br>再来看看专业的解释:闭包（Closure）是词法闭包（Lexical Closure）的简称，是引用了自由变量的函数。这个被引用的自由变量将和这个函数一同存在，即使已经离开了创造它的环境也不例外。所以，有另一种说法认为闭包是由函数和与其相关的引用环境组合而成的实体。<br>通俗的讲就是：如果在一个内部函数里，对在外部作用域（但不是在全局作用域）的变量进行引用，那么内部函数就被认为是闭包（closure）。它只不过是个“内层”的函数，由一个名字（变量）来指代，而这个名字（变量）对于“外层”包含它的函数而言，是本地变量。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">make_adder</span><span class="params">(addend)</span>:</span>    
+    <span class="function"><span class="keyword">def</span> <span class="title">adder</span><span class="params">(augend)</span>:</span>        
+        <span class="keyword">return</span> augend + addend   
+    <span class="keyword">return</span> adder 
+p = make_adder(<span class="number">23</span>) 
+q = make_adder(<span class="number">44</span>)
+<span class="keyword">print</span> p(<span class="number">100</span>)
+<span class="keyword">print</span> q(<span class="number">100</span>)
+</code></pre><p>执行结果：</p>
+<blockquote>
+<p>123</p>
+<p>144</p>
+</blockquote>
+<p>代码二：<br>    def line_conf(a, b):<br>        def line(x):<br>            return ax + b<br>        return line</p>
+<pre><code><span class="variable">line1 =</span> line_conf(<span class="number">1</span>, <span class="number">1</span>)
+<span class="variable">line2 =</span> line_conf(<span class="number">4</span>, <span class="number">5</span>)
+print(line1(<span class="number">5</span>), line2(<span class="number">5</span>))
+</code></pre><p>这个例子中，函数line与环境变量a,b构成闭包。在创建闭包的时候，我们通过line_conf的参数a,b说明了这两个环境变量的取值，这样，我们就确定了函数的最终形式(y = x + 1和y = 4x + 5)。我们只需要变换参数a,b，就可以获得不同的直线表达函数。由此，我们可以看到，闭包也具有提高代码可复用性的作用。<br>如果没有闭包，我们需要每次创建直线函数的时候同时说明a,b,x。这样，我们就需要更多的参数传递，也减少了代码的可移植性。利用闭包，我们实际上创建了泛函。line函数定义一种广泛意义的函数。这个函数的一些方面已经确定(必须是直线)，但另一些方面(比如a和b参数待定)。随后，我们根据line_conf传递来的参数，通过闭包的形式，将最终函数确定下来。</p>
+<h2 id="装饰器">装饰器</h2>
+<p>装饰器:<br>在函数调用前后自动打印日志，但又不希望修改now()函数的定义，这种在代码运行期间动态增加功能的方式，称之为“装饰器”（Decorator）。本质上，decorator就是一个返回函数的高阶函数。所以，我们要定义一个能打印日志的decorator.</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">makebold</span><span class="params">(fn)</span>:</span>    
+    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
+        <span class="keyword">return</span> <span class="string">"&lt;b&gt;"</span> + fn() + <span class="string">"&lt;/b&gt;"</span>    
+    <span class="keyword">return</span> wrapped
+<span class="function"><span class="keyword">def</span> <span class="title">makeitalic</span><span class="params">(fn)</span>:</span>     
+    <span class="function"><span class="keyword">def</span> <span class="title">wrapped</span><span class="params">()</span>:</span>        
+        <span class="keyword">return</span> <span class="string">"&lt;i&gt;"</span> + fn() + <span class="string">"&lt;/i&gt;"</span>    
+    <span class="keyword">return</span> wrapped
+
+<span class="decorator">@makebold</span>
+<span class="decorator">@makeitalic</span>
+    <span class="function"><span class="keyword">def</span> <span class="title">hello</span><span class="params">()</span>:</span>     
+        <span class="keyword">return</span> <span class="string">"hello world"</span>
+<span class="keyword">print</span> hello()
+</code></pre><p>执行结果：</p>
+<blockquote>
+<p><b><i>hello world</i></b></p>
+</blockquote>
+]]></content>
+    <summary type="html">
+    <![CDATA[匿名函数/闭包/装饰器]]>
+    
+    </summary>
+    
+      <category term="Python" scheme="http://don7hao.github.com/categories/Python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[TCP/IP-->Socket-->PF_INET协议族注册]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"/>
+    <id>http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T03:29:18.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
+<blockquote>
+<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
+</blockquote>
+<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
+<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
+<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
+<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
+<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
+<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
+<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
+<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+};
+
+#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
+
+static struct list_head inetsw[SOCK_MAX];
+</code></pre><blockquote>
+<p>inetsw在inet_init函数中初始化</p>
+</blockquote>
+<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
+<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
+    INIT_LIST_HEAD(r);
+</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
+<blockquote>
+<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
+</blockquote>
+<pre><code>static struct inet_protosw inetsw_array[] =
+{
+        {
+                .<span class="variable">type =</span>       SOCK_STREAM,
+                .<span class="variable">protocol =</span>   IPPROTO_TCP,
+                .<span class="variable">prot =</span>       &amp;tcp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   <span class="number">0</span>,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+                  INET_PROTOSW_ICSK,
+        },
+
+        {
+                .<span class="variable">type =</span>       SOCK_DGRAM,
+                .<span class="variable">protocol =</span>   IPPROTO_UDP,
+                .<span class="variable">prot =</span>       &amp;udp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
+       },
+
+
+       {
+               .<span class="variable">type =</span>       SOCK_RAW,
+               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
+               .<span class="variable">prot =</span>       &amp;raw_prot,
+               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
+               .<span class="variable">capability =</span> CAP_NET_RAW,
+               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
+       }
+};
+</code></pre><blockquote>
+<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
+    inet_register_protosw(q);
+</code></pre><blockquote>
+<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
+</blockquote>
+<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+
+<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+{
+    <span class="keyword">struct</span> list_head *lh;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">int</span> protocol = p-&gt;protocol;
+    <span class="keyword">struct</span> list_head *last_perm;
+
+    spin_lock_bh(&amp;inetsw_lock);
+
+    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
+        <span class="keyword">goto</span> out_illegal;
+
+    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
+    answer = <span class="literal">NULL</span>;
+    last_perm = &amp;inetsw[p-&gt;type];
+    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+
+        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
+         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
+         * 得到inet_protosw的地址
+         */</span>
+        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+
+        <span class="comment">/* Check only the non-wild match. */</span>
+        <span class="comment">/* 检查是否有已经注册过的socket type
+         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
+         * 且protocol相等，不能覆盖已有的socket类型.
+         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
+         */</span>
+        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
+            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+                <span class="keyword">break</span>;
+            last_perm = lh;
+        }
+
+        answer = <span class="literal">NULL</span>;
+    }
+    <span class="keyword">if</span> (answer)
+        <span class="keyword">goto</span> out_permanent;
+
+    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
+     * the new entry does not override a permanent entry when matched with
+     * a wild-card protocol. But it is allowed to override any existing
+     * non-permanent entry.  This means that when we remove this entry, the 
+     * system automatically returns to the old behavior.
+     * 挂链操作
+     */</span>
+    list_add_rcu(&amp;p-&gt;list, last_perm);
+<span class="keyword">out</span>:
+    spin_unlock_bh(&amp;inetsw_lock);
+
+    synchronize_net();
+
+    <span class="keyword">return</span>;
+
+out_permanent:
+    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
+           protocol);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+out_illegal:
+    printk(KERN_ERR
+           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
+           p-&gt;type);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[inetsw struct inet_protosw]]>
+    
+    </summary>
+    
+      <category term="TCP_IP.Architecture.Design.and.Implementation.in.Linux" scheme="http://don7hao.github.com/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[TCP/IP-->Socket-->创建PF_INET协议族的套接字]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/"/>
+    <id>http://don7hao.github.com/2015/01/27/tcp_ip_arch/2015-01-07-socket-inet_create/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T07:12:43.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="创建PF_INET协议族的套接字">创建PF_INET协议族的套接字</h2>
+<p>用户层调用socket(family,type,protocol)函数（<a href="http://don6hao.github.io/blog/2014/12/31/socket-layer.html" target="_blank" rel="external">socket函数执行流程</a>)，<br>若family等于PF_INET协议族的话，内核最终会调用inet_create(若type等于SOCK_STREAM,则inet_create-&gt;tcp_v4_init_sock)函数来创建套接字。</p>
+<p><img src="/img/Figure_3.4.png" alt="Figure_3.4.png" width="300" height="200"> </p>
+
+<h2 id="inetsw_array">inetsw_array</h2>
+<p>inetsw_array包含支持PF_INET协议族的各种IP协议（TCP，UDP，RAW）的所有信息，在inet_create函数中将使用struct sock和struct socket来存储这些信息已方便当前套接字使用。</p>
+<p>比如inetsw_array[0]的值</p>
+<pre><code>{
+        .<span class="variable">type =</span>       SOCK_STREAM,
+        .<span class="variable">protocol =</span>   IPPROTO_TCP,
+        .<span class="variable">prot =</span>       &amp;tcp_prot,
+        .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+        .<span class="variable">capability =</span> -<span class="number">1</span>,
+        .<span class="variable">no_check =</span>   <span class="number">0</span>,
+        .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+          INET_PROTOSW_ICSK,
+},
+</code></pre><p>用户层调用socket相关系统函数后，内核层首先会调用struct<br>socket-&gt;ops中的函数，然后在调用strcut sock-&gt;port中的函数。见下图</p>
+<p><img src="/img/Figure_3.3.png" alt="Figure_3.3.png" width="800" height="400"> </p>
+
+<h2 id="inet_create函数">inet_create函数</h2>
+<p>假设用户的命令是socket(PF_INET, SOCK_STREAM, 0/<em>IPPROTO_IP = 0 </em>/),则inet_create的参数sock-&gt;type等于SOCK_STREAM, protocl等于0.<br>socket-&gt;type 等于 SOCK_STREAM， protocol等于0</p>
+<pre><code>static <span class="built_in">int</span> inet_create(<span class="keyword">struct</span> socket *sock, <span class="built_in">int</span> protocol)
+{
+    <span class="keyword">struct</span> sock *sk;
+    <span class="keyword">struct</span> list_head *p;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">struct</span> inet_sock *inet;
+    <span class="keyword">struct</span> proto *answer_prot;
+    unsigned <span class="built_in">char</span> answer_flags;
+    <span class="built_in">char</span> answer_no_check;
+    <span class="built_in">int</span> try_loading_module = <span class="number">0</span>;
+    <span class="built_in">int</span> err;
+
+    <span class="comment">/*
+     * SS_UNCONNECTED 处于未连接状态
+     */</span>
+
+    sock-&gt;state = SS_UNCONNECTED;
+
+    <span class="comment">/* Look for the requested type/protocol pair. */</span>
+    answer = NULL;
+lookup_protocol:
+    err = -ESOCKTNOSUPPORT;
+    rcu_read_lock();
+    list_for_each_rcu(p, &amp;inetsw[sock-&gt;<span class="class"><span class="keyword">type</span>]) {</span>
+        answer = list_entry(p, <span class="keyword">struct</span> inet_protosw, <span class="built_in">list</span>);
+</code></pre><p>sock-&gt;type等于SOCK_STREAM, answer指向inetsw_array[0]</p>
+<pre><code>        <span class="comment">/* Check the non-wild match. */</span>
+        <span class="keyword">if</span> (<span class="class"><span class="keyword">protocol</span> == <span class="title">answer</span>-&gt;<span class="title">protocol</span>) </span>{
+            <span class="keyword">if</span> (<span class="class"><span class="keyword">protocol</span> != <span class="title">IPPROTO_IP</span>)
+                <span class="title">break</span>;
+        } <span class="title">else</span> </span>{
+</code></pre><p>protocol等于IPPROTO_IP不等于IPPROTO_TCP(answer-&gt;protocl),把answer-&gt;protocol(IPPROTO_TCP)复制给protocol</p>
+<pre><code>            <span class="comment">/* Check for the two wild cases. */</span>
+
+            <span class="keyword">if</span> (<span class="variable">IPPROTO_IP =</span>= protocol) {
+                <span class="variable">protocol =</span> answer-&gt;protocol;
+                break;
+            }
+            <span class="keyword">if</span> (<span class="variable">IPPROTO_IP =</span>= answer-&gt;protocol)
+                break;
+        }
+        <span class="variable">err =</span> -EPROTONOSUPPORT;
+        <span class="variable">answer =</span> NULL;
+    }
+</code></pre><p>把answer(指向inetsw_array[socket-&gt;type])的信息复制给sock(struct socket)</p>
+<pre><code>    <span class="comment">/*answer-&gt;prot = tcp_prot*/</span>
+    sock<span class="variable">-&gt;ops</span> = answer<span class="variable">-&gt;ops</span>;
+
+    <span class="comment">/* answer-&gt;ops  = &amp;inet_stream_ops */</span>
+    answer_prot = answer<span class="variable">-&gt;prot</span>;
+
+    answer_no_check = answer<span class="variable">-&gt;no_check</span>;
+    answer_flags = answer<span class="variable">-&gt;flags</span>;
+    rcu_read_unlock();
+
+    BUG_TRAP(answer_prot<span class="variable">-&gt;slab</span> != <span class="keyword">NULL</span>);
+
+    err = -ENOBUFS;
+</code></pre><p>分配一个sk(struct sock),sk-&gt;sk_prot = sk-&gt;sk_prot_creator=answer_prot(假设指向tcp_prot);</p>
+<pre><code>    <span class="variable">sk =</span> sk_alloc(PF_INET, GFP_KERNEL, answer_prot, <span class="number">1</span>);
+    <span class="keyword">if</span> (<span class="variable">sk =</span>= NULL)
+        goto out;
+
+    <span class="variable">err =</span> <span class="number">0</span>;
+    <span class="comment">/* 计算校验和 */</span>
+    sk-&gt;<span class="variable">sk_no_check =</span> answer_no_check;
+    <span class="keyword">if</span> (INET_PROTOSW_REUSE &amp; answer_flags)
+        sk-&gt;<span class="variable">sk_reuse =</span> <span class="number">1</span>;
+
+    <span class="comment">/*
+     * static inline struct inet_sock *inet_sk(const struct sock *sk)
+     * {
+     *     return (struct inet_sock *)sk;
+     * }
+     */</span>
+    <span class="variable">inet =</span> inet_sk(sk);
+    <span class="comment">/* INET_PROTOSW_ICSK:an inet_connection_sock */</span>
+    inet-&gt;<span class="variable">is_icsk =</span> INET_PROTOSW_ICSK &amp; answer_flags;
+
+    <span class="keyword">if</span> (<span class="variable">SOCK_RAW =</span>= sock-&gt;type) {
+        inet-&gt;<span class="variable">num =</span> protocol;
+        <span class="keyword">if</span> (<span class="variable">IPPROTO_RAW =</span>= protocol)
+            inet-&gt;<span class="variable">hdrincl =</span> <span class="number">1</span>;
+    }
+
+    <span class="comment">/* 混杂模式 */</span>
+    <span class="keyword">if</span> (ipv4_config.no_pmtu_disc)
+        inet-&gt;<span class="variable">pmtudisc =</span> IP_PMTUDISC_DONT;
+    <span class="keyword">else</span>
+        inet-&gt;<span class="variable">pmtudisc =</span> IP_PMTUDISC_WANT;
+
+    inet-&gt;<span class="variable">id =</span> <span class="number">0</span>;
+</code></pre><p>sock_init_data函数初始化sk(struct sock)与IP协议相关联的部分，若sock不为空则进行sock-&gt;sk=sk操作</p>
+<pre><code>    sock_init_data(sock, sk);
+
+    <span class="comment">/* called for cleanup operations on the socket when it is destroyed. */</span>
+    sk<span class="subst">-&gt;</span>sk_destruct       <span class="subst">=</span> inet_sock_destruct;
+    sk<span class="subst">-&gt;</span>sk_family       <span class="subst">=</span> PF_INET;
+    sk<span class="subst">-&gt;</span>sk_protocol       <span class="subst">=</span> protocol;
+    sk<span class="subst">-&gt;</span>sk_backlog_rcv <span class="subst">=</span> sk<span class="subst">-&gt;</span>sk_prot<span class="subst">-&gt;</span>backlog_rcv;
+
+    inet<span class="subst">-&gt;</span>uc_ttl    <span class="subst">=</span> <span class="subst">-</span><span class="number">1</span>;
+    inet<span class="subst">-&gt;</span>mc_loop    <span class="subst">=</span> <span class="number">1</span>;
+    inet<span class="subst">-&gt;</span>mc_ttl    <span class="subst">=</span> <span class="number">1</span>;
+    inet<span class="subst">-&gt;</span>mc_index    <span class="subst">=</span> <span class="number">0</span>;
+    inet<span class="subst">-&gt;</span>mc_list    <span class="subst">=</span> <span class="built_in">NULL</span>;
+
+    sk_refcnt_debug_inc(sk);
+
+    <span class="keyword">if</span> (inet<span class="subst">-&gt;</span>num) {
+        <span class="comment">/* It assumes that any protocol which allows
+         * the user to assign a number at socket
+         * creation time automatically
+         * shares.
+         */</span>
+        inet<span class="subst">-&gt;</span>sport <span class="subst">=</span> htons(inet<span class="subst">-&gt;</span>num);
+        <span class="comment">/* Add to protocol hash chains. */</span>
+        sk<span class="subst">-&gt;</span>sk_prot<span class="subst">-&gt;</span>hash(sk);
+    }
+</code></pre><p>从上面得知sk-&gt;sk_prot指向answer_prot.假设answer_prot指向tcp_prot，sk-&gt;sk_prot-&gt;init就会调用tcp_v4_init_sock(struct sock *sk)。tcp_v4_init_sock也是初始化一些变量和函数指针（比如send/receive<br>buffer的大小，定时器等）。</p>
+<pre><code>    <span class="keyword">if</span> (sk<span class="variable">-&gt;sk_prot</span><span class="variable">-&gt;init</span>) {
+        err = sk<span class="variable">-&gt;sk_prot</span><span class="variable">-&gt;init</span>(sk);
+        <span class="keyword">if</span> (err)
+            sk_common_release(sk);
+    }
+out:
+    <span class="keyword">return</span> err;
+out_rcu_unlock:
+    rcu_read_unlock();
+    <span class="keyword">goto</span> out;
+}
+</code></pre><p>inet_create函数的核心就是sk(struct sock)初始化，<br>它包含PF_INET协议族的相关函数操作集，指定协议套接字(TCP，UDP，RAW）的相关函数操作集，协议相关的数据结构的初始化等。<br>套接字初始化完毕后，就可以调用函数(bind, listen, accept等）来处理网络来的数据。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[inet_create]]>
+    
+    </summary>
+    
+      <category term="TCP_IP.Architecture.Design.and.Implementation.in.Linux" scheme="http://don7hao.github.com/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[TCP/IP-->Socket-->套接字创建流程]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/tcp_ip_arch/2014-12-31-socket-layer/"/>
+    <id>http://don7hao.github.com/2015/01/27/tcp_ip_arch/2014-12-31-socket-layer/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T04:45:31.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="BSD_socket">BSD socket</h2>
+<p>The BSD socket is a framework to the different families of socket that Linux supports.<br>The BSD socket concept is very similar to the VFS (virtual file system) layer.<br>This way different protocol families are supported by Linux, and their services are accessable to the user using a common socket interface.</p>
+<h3 id="VFS">VFS</h3>
+<p>VFS is a framework that provides a common interface to various different file systems/pipe/devices/sockets to the user without user knowing how things are organized inside the kernel.</p>
+<p><img src="/img/Figure_3.1.png" alt="Figure_3.1" width="800" height="400"> </p>
+
+
+<h2 id="socket()">socket()</h2>
+<p>用户调用socket函数时会调用内核层的sys_socket函数.sys_socket函数通过socket函数传递来的protocol,family<br>,type三个参数来创建对应的(TCP/UDP/RAW等)协议栈。</p>
+<p>socket(family, type, protocol)函数在内核中执行流程：</p>
+<p>socket()-&gt;sys_socketcall-&gt;sys_socket()-&gt;sock_create()-&gt;__sock_create()-&gt;net_families[?]-&gt;create()</p>
+<pre><code>asmlinkage <span class="keyword">long</span> sys_socket(<span class="keyword">int</span> family, <span class="keyword">int</span> type, <span class="keyword">int</span> protocol)
+{
+    <span class="keyword">int</span> retval;
+    <span class="keyword">struct</span> socket *sock;
+    <span class="comment">/*
+     * sock_create会调用__sock_create函数
+     * 若family为PF_INET,就会调用inet_create函数来初始化socket结构体
+     */</span>
+    retval = sock_create(family, type, protocol, &amp;sock);
+    <span class="keyword">if</span> (retval &lt; <span class="number">0</span>)
+        <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+    <span class="comment">/*
+     * 把struct socket sock放入到VFS中，返回fd-套接字
+     * 图Figure_3.2
+     */</span>
+    retval = sock_map_fd(sock);
+    <span class="keyword">if</span> (retval &lt; <span class="number">0</span>)
+        <span class="keyword">goto</span> out_release;
+}
+</code></pre><p><strong>net_families</strong>:保存所有不同类型的协议族的全局链表</p>
+<p>比如PF_INET协议族，inet_family_ops通过sock_regitser函数，把地址复制给net_families[PF_INET]</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">struct</span> net_proto_family inet_family_ops = {
+    .family = PF_INET,
+    .create = inet_create,
+    .owner    = THIS_MODULE,
+};
+
+
+<span class="keyword">int</span> sock_register(<span class="keyword">struct</span> net_proto_family *ops)
+{
+    <span class="keyword">if</span> (net_families[ops-&gt;family] == NULL) {
+        net_families[ops-&gt;family]=ops;
+        err = <span class="number">0</span>;
+    }
+}   
+</code></pre><p><strong>__sock_create函数</strong></p>
+<p>创建套接字时使用协议族参数作为偏移量，从net_families数组中获得协议族指针，进而调用该协议族的创建函数。</p>
+<p>若family为PF_INET,就会调用inet_create函数来初始化socket结构体</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">int</span> __sock_create(<span class="keyword">int</span> family, <span class="keyword">int</span> type, <span class="keyword">int</span> protocol, <span class="keyword">struct</span> socket **res, <span class="keyword">int</span> kern)
+{
+    <span class="comment">/* 若family等于PF_INET, net_families[PF_INET]-&gt;create指向inet_create函数 */</span>
+    <span class="keyword">if</span> ((err = net_families[family]-&gt;create(sock, protocol)) &lt; <span class="number">0</span>) {
+        sock-&gt;ops = <span class="literal">NULL</span>;
+        <span class="keyword">goto</span> out_module_put;
+    }
+
+}
+</code></pre><p>socket返回一个fd(file descirptor),fd通过VFS可以找到相对应的socket信息。</p>
+<p><img src="/img/Figure_3.2.png" alt="Figure_3.2" width="800" height="400"> </p>
+
+]]></content>
+    <summary type="html">
+    <![CDATA[socket fucntion implementation]]>
+    
+    </summary>
+    
+      <category term="TCP_IP.Architecture.Design.and.Implementation.in.Linux" scheme="http://don7hao.github.com/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Libeio--libeio初始化，REQ/RES队列，锁，线程]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/libeio/2015-01-12-libeio_data/"/>
+    <id>http://don7hao.github.com/2015/01/27/libeio/2015-01-12-libeio_data/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="libeio数据">libeio数据</h2>
+<p>libeio使用的数据主要包括多线程（主线程和worker线程），锁(互斥锁和条件锁），队列（req_queue和res_queue)。</p>
+<h2 id="libeio_初始化">libeio 初始化</h2>
+<pre><code><span class="keyword">int</span> eio_init (<span class="keyword">void</span> (*want_poll)(<span class="keyword">void</span>), <span class="keyword">void</span> (*done_poll)(<span class="keyword">void</span>))
+</code></pre><p>eio_init函数：初始化libeio库。成功返回0，失败返回-1并且设置合适的errno值。</p>
+<ol>
+<li>初始化libeio中的一些全局结构，比如：req_queue，res_queue，以及各种互斥量等。</li>
+<li><p>保存外界传入的两个回调函数：want_poll和done_poll。这两个函数都是边缘触发函数</p>
+<p> etp_init (void (<em>want_poll)(void), void (</em>done_poll)(void))<br> {</p>
+<pre><code> //初始化三个互斥量wrklock, reslock, reqlock和一个条件变量reqwait
+
+ X_MUTEX_CREATE (wrklock);
+ X_MUTEX_CREATE (reslock);
+ X_MUTEX_CREATE (reqlock);
+ X_COND_CREATE  (reqwait);
+
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span>初始化两个队列：
+  <span class="keyword">*</span> 1.eio_submit把request放入req_queue
+  <span class="keyword">*</span> 2.eio_poll从res_queue中取出数据
+  <span class="keyword">*</span>/
+
+ reqq_init (&amp;req_queue);
+ reqq_init (&amp;res_queue);
+
+ //work线程链表
+
+ wrk_first.next =
+ wrk_first.prev = &amp;wrk_first;
+
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span>  number of worker threads currently running.
+  <span class="keyword">*</span>/
+ started  = 0; 
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> 表示处于COND_WAIT状态下的空闲线程数
+  <span class="keyword">*</span>/
+ idle     = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> nreqs: number of requests currently handled by libeio. 
+  <span class="keyword">*</span> This is the total number of requests that have been submitted to libeio, but not yet destroyed.
+  <span class="keyword">*</span>/
+ nreqs    = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> nready : number of ready requests, 
+  <span class="keyword">*</span> i.e. requests that have been submitted but have not yet entered the execution phase.
+  <span class="keyword">*</span>/
+ nready   = 0;
+ /<span class="keyword">*</span>
+  <span class="keyword">*</span> npending : number of pending requests, 
+  <span class="keyword">*</span> i.e. requests that have been executed and have results, 
+  <span class="keyword">*</span> but have not been finished yet by a call to eio_poll)
+  <span class="keyword">*</span>/
+ npending = 0;
+
+ //设置回调函数
+
+ want_poll_cb = want_poll;
+ done_poll_cb = done_poll;
+
+ return 0;
+</code></pre><p> }</p>
+</li>
+</ol>
+<h2 id="REQ队列和RES队列">REQ队列和RES队列</h2>
+<p>etb_reqq结构体</p>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> eio_req    eio_req;
+<span class="preprocessor">#<span class="keyword">define</span> ETP_REQ eio_req</span>
+
+<span class="comment">/*
+* a somewhat faster data structure might be nice, but
+* with 8 priorities this actually needs &lt;20 insns
+* per shift, the most expensive operation.
+*/</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    ETP_REQ *qs[ETP_NUM_PRI], *qe[ETP_NUM_PRI]; <span class="comment">/* qstart, qend */</span>
+    <span class="keyword">int</span> size;
+} etp_reqq;
+</code></pre><p>定义两个etp_reqq全局变量</p>
+<pre><code><span class="keyword">static</span> etp_reqq req_queue;
+<span class="keyword">static</span> etp_reqq res_queue;
+</code></pre><p>初始化队列</p>
+<pre><code><span class="keyword">static</span> void ecb_noinline ecb_cold
+reqq_init (etp_reqq *q)
+{
+    <span class="keyword">int</span> pri;
+
+    <span class="comment">/*
+     * etp_reqq包含ETP_NUM_PRT个指向ETP_REQ的指针数组
+     * 每个数组成员的头指针和尾指针指向0 
+     */</span>
+    <span class="keyword">for</span> (pri = <span class="number">0</span>; pri &lt; ETP_NUM_PRI; ++pri)
+        q-&gt;qs[pri] = q-&gt;qe[pri] = <span class="number">0</span>;
+
+    q-&gt;size = <span class="number">0</span>;
+}
+</code></pre><p>把request放入到队列中</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">int</span> ecb_noinline
+reqq_push (etp_reqq *q, ETP_REQ *req)
+{
+    <span class="keyword">int</span> pri = req-&gt;pri;
+    req-&gt;next = <span class="number">0</span>;
+
+    <span class="comment">/*
+     * 若qe[pri]已有数据则该更新队列的尾指针指向该request
+     * 若无数据则队列头指针和尾指针都指向该request
+     */</span>
+    <span class="keyword">if</span> (q-&gt;qe[pri])
+    {
+        q-&gt;qe[pri]-&gt;next = req;
+        q-&gt;qe[pri] = req;
+    }
+    <span class="keyword">else</span>
+        q-&gt;qe[pri] = q-&gt;qs[pri] = req;
+
+    <span class="keyword">return</span> q-&gt;size++;
+}
+</code></pre><p>把request从队列中取出</p>
+<pre><code><span class="keyword">static</span> ETP_REQ * ecb_noinline
+reqq_shift (etp_reqq *q)
+{
+    <span class="keyword">int</span> pri;
+
+    <span class="keyword">if</span> (!q-&gt;size)
+        <span class="keyword">return</span> <span class="number">0</span>;
+
+    --q-&gt;size;
+
+    <span class="keyword">for</span> (pri = ETP_NUM_PRI; pri--; )
+    {
+        ETP_REQ *req = q-&gt;qs[pri];
+
+        <span class="keyword">if</span> (req)
+        {
+            <span class="comment">/* 队列数据取完，头和尾指针指向0 */</span>
+            <span class="keyword">if</span> (!(q-&gt;qs[pri] = (ETP_REQ *)req-&gt;next))
+                q-&gt;qe[pri] = <span class="number">0</span>;
+
+            <span class="keyword">return</span> req;
+        }
+    }
+
+    <span class="comment">/* 无数据可取，异常退出 */</span>
+    abort ();
+}
+</code></pre><h2 id="libeio中的锁">libeio中的锁</h2>
+<pre><code><span class="preprocessor">#<span class="keyword">include</span> &lt;pthread.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigset_t int</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigfillset(a)</span>
+<span class="preprocessor">#<span class="keyword">define</span> pthread_sigmask(a,b,c)</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigaddset(a,b)</span>
+<span class="preprocessor">#<span class="keyword">define</span> sigemptyset(s)</span>
+
+<span class="keyword">typedef</span> pthread_mutex_t xmutex_t;
+<span class="preprocessor">#<span class="keyword">define</span> X_MUTEX_INIT           PTHREAD_MUTEX_INITIALIZER</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_MUTEX_CREATE(mutex)  pthread_mutex_init (&amp;(mutex), 0)</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_LOCK(mutex)          pthread_mutex_lock (&amp;(mutex))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_UNLOCK(mutex)        pthread_mutex_unlock (&amp;(mutex))</span>
+
+<span class="keyword">typedef</span> pthread_cond_t xcond_t;
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_INIT                     PTHREAD_COND_INITIALIZER</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_CREATE(cond)        pthread_cond_init (&amp;(cond), 0)</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_SIGNAL(cond)             pthread_cond_signal (&amp;(cond))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_WAIT(cond,mutex)         pthread_cond_wait (&amp;(cond), &amp;(mutex))</span>
+<span class="preprocessor">#<span class="keyword">define</span> X_COND_TIMEDWAIT(cond,mutex,to) pthread_cond_timedwait (&amp;(cond), &amp;(mutex), &amp;(to))</span>
+</code></pre><p>在eio_submit中的部分代码：<br>1.reqlock加锁进行数据更新和reqq_push操作然后reqlock解锁<br>2.发送条件锁的信号给worker线程</p>
+<pre><code><span class="comment">X_LOCK</span> <span class="comment">(reqlock);</span>
+<span class="literal">+</span><span class="literal">+</span><span class="comment">nreqs;</span>
+<span class="literal">+</span><span class="literal">+</span><span class="comment">nready;</span>
+<span class="comment">reqq_push</span> <span class="comment">(&amp;req_queue</span><span class="string">,</span> <span class="comment">req);</span>
+<span class="comment">X_COND_SIGNAL</span> <span class="comment">(reqwait);</span>
+<span class="comment">X_UNLOCK</span> <span class="comment">(reqlock);</span>
+</code></pre><p>etp_poll中的部分代码：<br>1.reqlock加锁进行数据更新和reqq_shift操作然后reqlock解锁</p>
+<pre><code>X_LOCK (reslock);
+req = reqq_shift (&amp;res_queue);
+<span class="keyword">if</span> (req)
+{
+    --npending;
+    <span class="keyword">if</span> (!res_queue.size &amp;&amp; <span class="keyword">done</span>_poll_cb)
+    <span class="keyword">done</span>_poll_cb ();
+}
+X_UNLOCK (reslock);
+</code></pre><p>worker线程中使用X_COND_WAIT或X_COND_TIMEDWAIT来接受条件锁信号</p>
+<pre><code><span class="keyword">if</span> (idle &lt;= max_idle)
+    <span class="comment">/* we are allowed to idle, so do so without any timeout */</span>
+    X_COND_WAIT (reqwait, reqlock);
+<span class="keyword">else</span>
+{
+    <span class="comment">/* initialise timeout once */</span>
+    <span class="keyword">if</span> (!ts.tv_sec)
+    ts.<span class="variable">tv_sec =</span> time (<span class="number">0</span>) + idle_timeout;
+
+    <span class="keyword">if</span> (X_COND_TIMEDWAIT (reqwait, reqlock, ts) == ETIMEDOUT)
+        ts.<span class="variable">tv_sec =</span> <span class="number">1</span>; <span class="comment">/* assuming this is not a value computed above.,.. */</span>
+}
+</code></pre><h2 id="work线程">work线程</h2>
+<p>线程初始化：</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+etp_maybe_start_thread (<span class="keyword">void</span>)
+{
+    <span class="keyword">if</span> (ecb_expect_true (etp_nthreads () &gt;= wanted))
+        <span class="keyword">return</span>;
+
+    <span class="comment">/* todo: maybe use idle here, but might be less exact */</span>
+    <span class="keyword">if</span> (ecb_expect_true (<span class="number">0</span> &lt;= (<span class="keyword">int</span>)etp_nthreads () + (<span class="keyword">int</span>)etp_npending () - (<span class="keyword">int</span>)etp_nreqs ()))
+        <span class="keyword">return</span>;
+
+    etp_start_thread ();
+}
+</code></pre><p>通过calloc分配work线程资源并挂在wrk_first双向链表上</p>
+<pre><code><span class="keyword">static</span> etp_worker wrk_first; <span class="comment">/* NOT etp */</span>
+
+<span class="keyword">static</span> <span class="keyword">void</span> ecb_cold
+etp_start_thread (<span class="keyword">void</span>)
+{
+    etp_worker *wrk = calloc (<span class="number">1</span>, sizeof (etp_worker));
+
+    <span class="comment">/*TODO*/</span>
+    assert ((<span class="string">"unable to allocate worker thread data"</span>, wrk));
+
+    X_LOCK (wrklock);
+
+    <span class="keyword">if</span> (xthread_create (&amp;wrk-&gt;tid, etp_proc, (<span class="keyword">void</span> *)wrk))
+    {
+        wrk-&gt;prev = &amp;wrk_first;
+        wrk-&gt;<span class="keyword">next</span> = wrk_first.<span class="keyword">next</span>;
+        wrk_first.<span class="keyword">next</span>-&gt;prev = wrk;
+        wrk_first.<span class="keyword">next</span> = wrk;
+        ++started;
+    }
+    <span class="keyword">else</span>
+        free (wrk);
+
+    X_UNLOCK (wrklock);
+}
+</code></pre><p>创建属性detached(不用考虑线程资源的回收)的线程</p>
+<pre><code><span class="keyword">static</span> <span class="type">int</span>
+xthread_create (xthread_t *tid, <span class="type">void</span> *(*<span class="keyword">proc</span>)(<span class="type">void</span> *), <span class="type">void</span> *arg)
+{
+    <span class="type">int</span> retval;
+    pthread_attr_t attr;
+
+    pthread_attr_init (&amp;attr);
+    pthread_attr_setdetachstate (&amp;attr, <span class="type">PTHREAD_CREATE_DETACHED</span>);
+
+    retval = pthread_create (tid, &amp;attr, <span class="keyword">proc</span>, arg) == <span class="number">0</span>;
+
+    pthread_attr_destroy (&amp;attr);
+
+    <span class="keyword">return</span> retval;
+}
+</code></pre><p>从链表上移除</p>
+<pre><code>static void ecb_cold
+etp_worker_free (etp_worker *wrk)
+{
+    free (wrk-&gt;tmpbuf.ptr);
+
+    wrk-&gt;<span class="keyword">next</span>-&gt;prev = wrk-&gt;prev;
+    wrk-&gt;prev-&gt;<span class="keyword">next</span> = wrk-&gt;<span class="keyword">next</span>;
+
+    free (wrk);
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[libeio asynchronous]]>
+    
+    </summary>
+    
+      <category term="Libeio" scheme="http://don7hao.github.com/categories/Libeio/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Python--协程]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/python/2014-12-31-%E5%8D%8F%E7%A8%8B/"/>
+    <id>http://don7hao.github.com/2015/01/27/python/2014-12-31-协程/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-22T06:41:52.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="协程">协程</h2>
+<p>协程看上去也是子程序，但执行过程中，在子程序内部可中断，然后转而执行别的子程序，在适当的时候再返回来接着执行。<br>注意，在一个子程序中中断，去执行其他子程序，不是函数调用，有点类似CPU的中断。</p>
+<p>​对比多线程优势：</p>
+<ol>
+<li>因为子程序切换不是线程切换，而是由程序自身控制，因此，没有线程切换的开销，和多线程比，线程数量越多，协程的性能优势就越明显。</li>
+<li>协程不需要多线程的锁机制，因为只有一个线程，也不存在同时写变量冲突，在协程中控制共享资源不加锁，只需要判断状态就好了，所以执行效率比多线程高很多。</li>
+</ol>
+<p>因为协程是一个线程执行，那怎么利用多核CPU呢？最简单的方法是多进程+协程，既充分利用多核，又充分发挥协程的高效率，可获得极高的性能。</p>
+<h2 id="yield">yield</h2>
+<p>Python对协程的支持还非常有限，用在generator中的yield可以一定程度上实现协程。</p>
+<pre><code><span class="function"><span class="keyword">def</span> <span class="title">fab</span><span class="params">(max)</span>:</span> 
+    n, a, b = <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span> 
+    <span class="keyword">while</span> n &lt; max: 
+        <span class="keyword">yield</span> b 
+        <span class="comment"># print b </span>
+        a, b = b, a + b 
+        n = n + <span class="number">1</span>
+<span class="keyword">for</span> i <span class="keyword">in</span> fab(<span class="number">5</span>):
+    <span class="keyword">print</span> i
+</code></pre><p>yield的作用就是把一个函数变成一个 generator，Python 解释器会将其视为一个generator.<br>在for循环执行时，每次循环都会执行fab函数内部的代码，执行到yield b 时，fab 函数就返回一个迭代值，<br>下次迭代时，代码从 yield b 的下一条语句继续执行，而函数的本地变量看起来和上次中断执行前是完全一样的，于是函数继续执行，直到再次遇到 yield。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[协程/yield]]>
+    
+    </summary>
+    
+      <category term="Python" scheme="http://don7hao.github.com/categories/Python/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Nginx--FIOASYNC]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/nginx/2015-01-04-nginx-fioasync/"/>
+    <id>http://don7hao.github.com/2015/01/27/nginx/2015-01-04-nginx-fioasync/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>ngx_spawn_process函数中设置信号驱动异步I/O标志,它决定是否收取针对本套接口的异步I/O<br>信号(SIGIO).</p>
+</blockquote>
+<pre><code>{
+    <span class="function_start"><span class="keyword">on</span></span> = <span class="number">1</span>;
+    <span class="keyword">if</span> (ioctl(ngx_processes[s].channel[<span class="number">0</span>], FIOASYNC, &amp;<span class="function_start"><span class="keyword">on</span></span>) == -<span class="number">1</span>) {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="command">log</span>, ngx_errno,
+                      <span class="string">"ioctl(FIOASYNC) failed while spawning \"%s\""</span>, <span class="property">name</span>);
+        ngx_close_channel(ngx_processes[s].channel, cycle-&gt;<span class="command">log</span>);
+<span class="command">        return</span> NGX_INVALID_PID;
+    }
+
+    <span class="keyword">if</span> (fcntl(ngx_processes[s].channel[<span class="number">0</span>], F_SETOWN, ngx_pid) == -<span class="number">1</span>) {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="command">log</span>, ngx_errno,
+                      <span class="string">"fcntl(F_SETOWN) failed while spawning \"%s\""</span>, <span class="property">name</span>);
+        ngx_close_channel(ngx_processes[s].channel, cycle-&gt;<span class="command">log</span>);
+<span class="command">        return</span> NGX_INVALID_PID;
+    }
+}
+</code></pre><h2 id="FIOASYNC">FIOASYNC</h2>
+<p>FIOASYNC Enables a simple form of asynchronous I/O notification.<br>This command causes the kernel to send SIGIO signal to a process or a process group when I/O is possible.<br>Only sockets, ttys, and pseudo-ttys implement this functionality.</p>
+<h2 id="WHEN_DO_WE_USE_FIOASYNC">WHEN DO WE USE FIOASYNC</h2>
+<p>Let’s imagine a process that executes a long computational loop at low priority but needs to process incoming data as soon as possible.<br>If this process is responding to new observations available from some sort of data acquisition peripheral, it would like to know immediately when new data is available.<br>This application could be written to call poll regularly to check for data, but, for many situations, there is a better way.<br><strong>By enabling asynchronous notification, this application can receive a signal<br>whenever data becomes available</strong> and need not concern itself with polling.</p>
+<h2 id="HOWTO_USE_FIOASYNC">HOWTO USE FIOASYNC</h2>
+<p>User programs have to execute <strong>two steps</strong> to enable asynchronous notification from an input file.<br>First, they specify a process as the “owner” of the file.<br>When a process invokes the <em>F_SETOWN</em> command using the fcntl system call, the process ID of the owner process is saved in filp-&gt;f_owner for later use.<br>This step is necessary for the kernel to know just whom to notify.</p>
+<pre><code><span class="function"><span class="title">fcntl</span><span class="params">(fd, <span class="variable">F_SETOWN</span>, process_id)</span></span>
+</code></pre><p>In order to actually enable asynchronous notification, the user programs must<br>set the <strong>FASYNC flag</strong> in the device by means of the F_SETFL fcntl command as<br>blow:</p>
+<pre><code>oflags = <span class="keyword">fcntl</span>(STDIN_FILENO, F_GETFL);
+<span class="keyword">fcntl</span>(STDIN_FILENO, F_SETFL, oflags | FASYNC);
+</code></pre><p>or call ioctl function as blow:</p>
+<pre><code>int <span class="function_start"><span class="keyword">on</span></span> = <span class="number">1</span>;ioctl(fd, FIOASYNC, &amp;<span class="function_start"><span class="keyword">on</span></span>)
+</code></pre><p>After these two calls have been executed, the input file can request delivery of a SIGIO signal whenever new data arrives.<br>The signal is sent to the process (or process group, if the value is negative) stored in filp-&gt;f_owner.</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[fioasync nginx]]>
+    
+    </summary>
+    
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Libeio--libeio流程分析]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/libeio/2015-01-12-libeio_framework/"/>
+    <id>http://don7hao.github.com/2015/01/27/libeio/2015-01-12-libeio_framework/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T04:49:15.000Z</updated>
+    <content type="html"><![CDATA[<p><img src="/img/libeio_framework_1.png" alt="libeio_framework_1.png"> </p>
+<p>libeio的异步非阻塞实现是通过<a href="http://don6hao.github.io/blog/2015/01/12/libeio_data.html" target="_blank" rel="external">多线程/队列/锁等方法</a>来实现，线程间通信机制是由使用者自己设计的（下面的测试代码是通过管道来实现的）。</p>
+<p>执行的大概步骤：</p>
+<p>1.主线程首先通过eio_init函数建立线程间的通信机制（这个机制是要使用者通过设计want_poll和done_poll来实现线程间通信）。</p>
+<p>2.下一步主线程封装一个requst（成员type指向libeio支持的函数名）调用eio_submit把request放到req_queue中并启动work线程。</p>
+<p>3.worker线程启动后从req_queue队列中读取request，然后放入res_queue队里中并通过want_poll告知主线程有数据可取。</p>
+<p>4.主线程知道后就调用eio_poll从res_queue队列中取出数据并根据request的type调用对应的函数。</p>
+<h2 id="测试代码">测试代码</h2>
+<pre><code><span class="preprocessor">#<span class="keyword">include</span> &lt;stdio.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;stdlib.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;unistd.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;poll.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;string.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;assert.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;fcntl.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;sys/types.h&gt;</span>
+<span class="preprocessor">#<span class="keyword">include</span> &lt;sys/stat.h&gt;</span>
+
+<span class="preprocessor">#<span class="keyword">include</span> "eio.h"</span>
+</code></pre><p>want_poll函数是worker线程调用，done_poll是主线程调用。libeio要user通过这两个函数实现worker线程和主线程之间的通信。</p>
+<pre><code><span class="keyword">int</span> respipe [<span class="number">2</span>];
+
+<span class="comment">/* 
+ * want_poll回调函数，赋值给want_poll_cb
+ * worker线程通知主线程的机制是通过向 pipe[1]写一个 byte
+ * 数据(event_loop-&gt;poll)
+ */</span>
+<span class="keyword">void</span> want_poll (<span class="keyword">void</span>)
+{
+    <span class="keyword">char</span> dummy;
+    <span class="built_in">printf</span> (<span class="string">"want_poll ()\n"</span>);
+    write (respipe [<span class="number">1</span>], &amp;dummy, <span class="number">1</span>);
+}
+
+<span class="comment">//done_poll回调函数,赋值给done_poll_cb</span>
+<span class="comment">/* 
+ * done_poll回调函数,赋值给done_poll_cb
+ * done_poll 从 pipe[0]读出一个 byte 数据，该 IO 操作完成
+ */</span>
+<span class="keyword">void</span> done_poll (<span class="keyword">void</span>)
+{
+    <span class="keyword">char</span> dummy;
+    <span class="built_in">printf</span> (<span class="string">"done_poll ()\n"</span>);
+    read (respipe [<span class="number">0</span>], &amp;dummy, <span class="number">1</span>);
+}
+
+
+<span class="comment">//事件循环</span>
+<span class="keyword">void</span> event_loop (<span class="keyword">void</span>)
+{
+    <span class="comment">// an event loop. yeah.</span>
+    <span class="keyword">struct</span> pollfd pfd;
+    pfd.fd     = respipe [<span class="number">0</span>];
+    pfd.events = POLLIN;
+
+    <span class="built_in">printf</span> (<span class="string">"\nentering event loop\n"</span>);
+
+    <span class="comment">// eio_nreqs返回当前正在处理的请求数量。main函数只加入一个request请求eio_nreqs()等于1.</span>
+
+    <span class="keyword">while</span> (eio_nreqs()){
+        <span class="comment">/* 
+         * 等待worker线程的通知,当pipe[0]可读时，就调用eio_poll
+         */</span>
+        poll(&amp;pfd, <span class="number">1</span>, -<span class="number">1</span>);
+
+        <span class="comment">/*
+         * eio_poll-&gt;etp_poll完成：
+         * 1. 调用reqq_shift从res_queue取出数据(eio_req)。
+         * 2. 调用don_poll_cb回调函数。
+         * 3. ETP_FINISH-&gt;eio_finish-&gt;req-&gt;finish函数(回调函数，本例中相当于res_cb函数）
+         */</span>
+
+        <span class="built_in">printf</span>(<span class="string">"eio_poll() = %d\n"</span>, eio_poll());
+    }
+
+    <span class="built_in">printf</span> (<span class="string">"leaving event loop\n"</span>);
+}
+</code></pre><p>eio_finish-&gt;req-&gt;finish函数（eio_nop中把res_cb赋值给req-&gt;finish)</p>
+<pre><code>int res_cb (eio_req <span class="subst">*</span>req)
+{
+    printf (<span class="string">"res_cb(%d|%s) = %d\n"</span>, req<span class="subst">-&gt;</span><span class="keyword">type</span>, req<span class="subst">-&gt;</span><span class="built_in">data</span> <span class="subst">?</span> req<span class="subst">-&gt;</span><span class="built_in">data</span> : <span class="string">"?"</span>, EIO_RESULT (req));
+
+    <span class="keyword">if</span> (req<span class="subst">-&gt;</span>result <span class="subst">&lt;</span> <span class="number">0</span>)
+        <span class="keyword">abort</span> ();
+
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+
+int main (<span class="literal">void</span>)
+{
+    printf (<span class="string">"pipe ()\n"</span>);
+    <span class="comment">/*
+     * 创建管道
+     * 在worker线程完成IO请求，通知主线程的机制是需要使用者自定义的
+     * 这里我们使用pipe(一种常用的线程通知机制）作为通信机制
+     */</span>
+    <span class="keyword">if</span> (pipe(respipe)) <span class="keyword">abort</span> ();
+    printf (<span class="string">"eio_init ()\n"</span>);
+
+    <span class="comment">//eio_init初始化回调函数和res_queue/req_queue等相关数据</span>
+    <span class="keyword">if</span> (eio_init (want_poll, done_poll)) 
+        <span class="keyword">abort</span> ();
+
+    <span class="keyword">do</span>{
+        <span class="comment">/*
+         * eio_nop : 把参数封装成request(eio_req)并eio_submit操作
+         *
+         * eio_submit会进行以下操作:
+         * 1. 把request放入到req_queue队列中(reqq_push操作)
+         * 2. 告知worker线程有请求到达(cond_signal操作)。
+         * 3. eio_submit会启动一个work线程
+
+         * 启动的work线程会进行以下操作：
+         * 1. reqq_shift从req_queue取数据。
+         * 2. cond_wait等待cond_signal的信息。
+         * 3. 把req放入到res_queue队列中，若want_poll_cb非空，执行want_poll_cb(want_poll_cb指向want_poll)。
+         */</span>
+
+        eio_nop(<span class="number">0</span>, res_cb, <span class="string">"nop"</span>);
+        event_loop();
+    }<span class="keyword">while</span> (<span class="number">0</span>);
+
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+</code></pre><h2 id="eio_submit函数">eio_submit函数</h2>
+<pre><code>ETP_API_DECL void
+etp_submit (ETP_REQ *req)
+{
+    req-&gt;pri -= ETP_PRI_MIN;
+
+    <span class="keyword">if</span> (ecb_expect_false (req-&gt;pri &lt; ETP_PRI_MIN - ETP_PRI_MIN)) req-&gt;pri = ETP_PRI_MIN - ETP_PRI_MIN;
+    <span class="keyword">if</span> (ecb_expect_false (req-&gt;pri &gt; ETP_PRI_MAX - ETP_PRI_MIN)) req-&gt;pri = ETP_PRI_MAX - ETP_PRI_MIN;
+
+    <span class="keyword">if</span> (ecb_expect_false (req-&gt;<span class="keyword">type</span> == ETP_TYPE_GROUP))
+    {
+        <span class="comment">/* group request */</span>
+        <span class="comment">/* I hope this is worth it :/ */</span>
+        X_LOCK (reqlock);
+        ++nreqs;
+        X_UNLOCK (reqlock);
+
+        X_LOCK (reslock);
+
+        ++npending;
+
+        <span class="keyword">if</span> (!reqq_push (&amp;res_queue, req) &amp;&amp; want_poll_cb)
+        want_poll_cb ();
+
+        X_UNLOCK (reslock);
+    }
+    <span class="keyword">else</span>
+    {
+        X_LOCK (reqlock);
+        ++nreqs;
+        ++nready;
+        <span class="comment">/* 把request放入到req_queue队列中(reqq_push操作) */</span>
+        reqq_push (&amp;req_queue, req);
+        <span class="comment">/* 告知worker线程有请求到达(cond_signal操作) */</span>
+        X_COND_SIGNAL (reqwait);
+        X_UNLOCK (reqlock);
+
+        <span class="comment">/* 
+         * 启动的work线程会进行以下操作：
+         * 1. reqq_shift从req_queue取数据。
+         * 2. cond_wait等待cond_signal的信息。
+         * 3. 把req放入到res_queue队列中，若want_poll_cb非空，执行want_poll_cb(want_poll_cb指向want_poll)。
+         */</span>
+        etp_maybe_start_thread ();
+    }
+}
+</code></pre><h2 id="worker线程">worker线程</h2>
+<p>work线程调用etp_proc函数。<a href="http://don6hao.github.io/blog/2015/01/12/libeio_data.html" target="_blank" rel="external">libeio线程</a></p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span> ecb_cold
+etp_start_thread (<span class="keyword">void</span>)
+{
+    etp_worker *wrk = calloc (<span class="number">1</span>, sizeof (etp_worker));
+
+    <span class="comment">/*TODO*/</span>
+    assert ((<span class="string">"unable to allocate worker thread data"</span>, wrk));
+
+    X_LOCK (wrklock);
+
+    <span class="comment">/* 调用etp_proc函数 */</span>
+    <span class="keyword">if</span> (xthread_create (&amp;wrk-&gt;tid, etp_proc, (<span class="keyword">void</span> *)wrk))
+    {
+        wrk-&gt;prev = &amp;wrk_first;
+        wrk-&gt;<span class="keyword">next</span> = wrk_first.<span class="keyword">next</span>;
+        wrk_first.<span class="keyword">next</span>-&gt;prev = wrk;
+        wrk_first.<span class="keyword">next</span> = wrk;
+        ++started;
+    }
+    <span class="keyword">else</span>
+        free (wrk);
+
+    X_UNLOCK (wrklock);
+}
+</code></pre><h2 id="etp_proc函数">etp_proc函数</h2>
+<p>若req_queue有数据时:</p>
+<ol>
+<li>调用ETP_EXECUTE-&gt;eio_execute(eio_execute最底层的处理函数,根据请求的类型调用相应函数操作),把结果返回给req.</li>
+<li>把req数据push到res_queue中，然后调用want_poll_cb回调函数(通知主线程有数据可读)</li>
+</ol>
+<p>若req_queue无数据时:<br>libeio只允许max_idle个线程处于空闲等待X_COND_WAIT，从第max_idle+1个线程开始超时等待（若超时就线程退出）</p>
+<pre><code><span class="preprocessor">#define X_THREAD_PROC(name) static void *name (void *thr_arg)</span>
+X_THREAD_PROC (etp_proc)
+{
+    ETP_REQ *req;
+    <span class="keyword">struct</span> timespec ts;
+    etp_worker *<span class="keyword">self</span> = (etp_worker *)thr_arg;
+
+    etp_proc_init ();
+
+    <span class="comment">/* try to distribute timeouts somewhat evenly */</span>
+    ts<span class="variable">.tv_nsec</span> = ((<span class="keyword">unsigned</span> <span class="keyword">long</span>)<span class="keyword">self</span> &amp; <span class="number">1023</span>UL) * (<span class="number">1000000000</span>UL / <span class="number">1024</span>UL);
+
+    <span class="keyword">for</span> (;;)
+    {
+        ts<span class="variable">.tv_sec</span> = <span class="number">0</span>;
+
+        X_LOCK (reqlock);
+
+        <span class="keyword">for</span> (;;)
+        {
+            req = reqq_shift (&amp;req_queue);
+
+            <span class="comment">/* req_queue有数据就跳出循环 */</span>
+            <span class="keyword">if</span> (req)
+                <span class="keyword">break</span>;
+
+            <span class="keyword">if</span> (ts<span class="variable">.tv_sec</span> == <span class="number">1</span>) <span class="comment">/* no request, but timeout detected, let's quit */</span>
+            {
+                <span class="comment">/* 超时就线程退出 */</span>
+                X_UNLOCK (reqlock);
+                X_LOCK (wrklock);
+                --started;
+                X_UNLOCK (wrklock);
+                <span class="keyword">goto</span> quit;
+            }
+
+            ++idle;
+
+            <span class="comment">/* libeio只允许max_idle个线程处于空闲等待X_COND_WAIT
+             * 从第max_idle+1个线程开始，进行超时等待判断（若超时就线程退出）
+             */</span>
+            <span class="keyword">if</span> (idle &lt;= max_idle)
+                <span class="comment">/* we are allowed to idle, so do so without any timeout */</span>
+                X_COND_WAIT (reqwait, reqlock);
+            <span class="keyword">else</span>
+            {
+                <span class="comment">/* initialise timeout once */</span>
+                <span class="keyword">if</span> (!ts<span class="variable">.tv_sec</span>)
+                    ts<span class="variable">.tv_sec</span> = time (<span class="number">0</span>) + idle_timeout;
+
+                <span class="keyword">if</span> (X_COND_TIMEDWAIT (reqwait, reqlock, ts) == ETIMEDOUT)
+                    ts<span class="variable">.tv_sec</span> = <span class="number">1</span>; <span class="comment">/* assuming this is not a value computed above.,.. */</span>
+            }
+
+            --idle;
+        }
+
+        --nready;
+
+        X_UNLOCK (reqlock);
+
+        <span class="comment">/* 收到线程退出的request */</span>
+        <span class="keyword">if</span> (req-&gt;type == ETP_TYPE_QUIT)
+            <span class="keyword">goto</span> quit;
+
+        ETP_EXECUTE (<span class="keyword">self</span>, req);
+
+        X_LOCK (reslock);
+
+        ++npending;
+
+        <span class="keyword">if</span> (!reqq_push (&amp;res_queue, req) &amp;&amp; want_poll_cb)
+            want_poll_cb ();
+
+        etp_worker_clear (<span class="keyword">self</span>);
+
+        X_UNLOCK (reslock);
+    }
+
+quit:
+    free (req);
+
+    X_LOCK (wrklock);
+    <span class="comment">/* 从线程池中移除 */</span>
+    etp_worker_free (<span class="keyword">self</span>);
+    X_UNLOCK (wrklock);
+
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+</code></pre><h2 id="eio_poll-&gt;etp_poll">eio_poll-&gt;etp_poll</h2>
+<p>主要是完成res_queue中就绪的eio_req对象的处理。ETP_FINISH宏中会调用eio_req中绑定的回调函数(上面测试代码中绑定的函数就是res_cb函数).</p>
+<pre><code>#define EIO_FINISH(req)  ((req)-&gt;finish) &amp;&amp; !EIO_CANCELLED (req) ? (req)-&gt;finish (req) : <span class="number">0</span>
+
+ETP_API_DECL <span class="keyword">int</span>
+etp_poll (void)
+{
+    unsigned <span class="keyword">int</span> maxreqs;
+    unsigned <span class="keyword">int</span> maxtime;
+    <span class="keyword">struct</span> timeval tv_start, tv_now;
+
+    X_LOCK (reslock);
+    maxreqs = max_poll_reqs;
+    maxtime = max_poll_time;
+    X_UNLOCK (reslock);
+
+    <span class="keyword">if</span> (maxtime)
+        gettimeofday (&amp;tv_start, <span class="number">0</span>);
+
+    <span class="keyword">for</span> (;;)
+    {
+        ETP_REQ *req;
+
+        etp_maybe_start_thread ();
+
+        X_LOCK (reslock);
+        req = reqq_shift (&amp;res_queue);
+
+        <span class="comment">/*
+         * 取出数据然后调用done_poll_cb回调函数读取线程间的信息
+         */</span>
+        <span class="keyword">if</span> (req)
+        {
+            --npending;
+            <span class="keyword">if</span> (!res_queue.size &amp;&amp; done_poll_cb)
+                done_poll_cb ();
+        }
+
+        X_UNLOCK (reslock);
+
+        <span class="keyword">if</span> (!req)
+            <span class="keyword">return</span> <span class="number">0</span>;
+
+        X_LOCK (reqlock);
+        --nreqs;
+        X_UNLOCK (reqlock);
+
+        <span class="keyword">if</span> (ecb_expect_false (req-&gt;<span class="keyword">type</span> == ETP_TYPE_GROUP &amp;&amp; req-&gt;size))
+        {
+            req-&gt;int1 = <span class="number">1</span>; <span class="comment">/* mark request as delayed */</span>
+            <span class="keyword">continue</span>;
+        }
+        <span class="keyword">else</span>
+        {
+            <span class="comment">/*
+             * 上面测试代码eio_nop中把res_cb赋值给req-&gt;finish（ETP_FINISH-&gt;eio_finish-&gt;EIO_FINISH)
+             */</span>
+            <span class="keyword">int</span> res = ETP_FINISH (req);
+            <span class="keyword">if</span> (ecb_expect_false (res))
+                <span class="keyword">return</span> res;
+        }
+
+        <span class="keyword">if</span> (ecb_expect_false (maxreqs &amp;&amp; !--maxreqs))
+            <span class="keyword">break</span>;
+
+        <span class="keyword">if</span> (maxtime)
+        {
+            gettimeofday (&amp;tv_now, <span class="number">0</span>);
+
+            <span class="keyword">if</span> (etp_tvdiff (&amp;tv_start, &amp;tv_now) &gt;= maxtime)
+            <span class="keyword">break</span>;
+        }
+    }
+
+    errno = EAGAIN;
+    <span class="keyword">return</span> -<span class="number">1</span>;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[libeio asynchronous framework]]>
+    
+    </summary>
+    
+      <category term="Libeio" scheme="http://don7hao.github.com/categories/Libeio/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Nginx--worker进程的信号处理]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/"/>
+    <id>http://don7hao.github.com/2015/01/27/nginx/2015-01-05-nginx-worker-handle-signal/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="信号处理">信号处理</h2>
+<blockquote>
+<p>worker信号主要是<a href="http://don6hao.github.io/blog/2015/01/04/nginx-init-signal.html" target="_blank" rel="external">ngx_signal_handler函数</a>来处理，它接收到某信号后会设置对应的全局标志位。</p>
+<p>worker进程会调用ngx_worker_process_cycle函数循环检测标志位并进行对应操作。</p>
+</blockquote>
+<h2 id="ngx_worker_process_cycle函数">ngx_worker_process_cycle函数</h2>
+<blockquote>
+<p>ngx_worker_process_cycle函数主要关注4个全局标志位：</p>
+</blockquote>
+<p>&gt;<br>|        标志位      |      含义          |<br>| ————————— | ————————— |<br>| ngx_quit           | 优雅地关闭整个服务 |<br>| ngx_terminate      | 强制关闭整个服务   |<br>| ngx_reopen         | 重新打开服务中的所有文件 |<br>| ngx_exiting        | 退出进程标志位 |</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_worker_process_cycle(ngx_cycle_t *cycle, <span class="keyword">void</span> *data)
+{
+    ngx_int_t worker = (intptr_t) data;
+
+    ngx_uint_t         i;
+    ngx_connection_t  *c;
+
+    ngx_process = NGX_PROCESS_WORKER;
+
+    ngx_worker_process_init(cycle, worker);
+
+    ngx_setproctitle(<span class="string">"worker process"</span>);
+
+    <span class="keyword">for</span> ( ;; ) {
+</code></pre><blockquote>
+<p><strong>ngx_exiting 标志位</strong></p>
+<p>对进程的连接进行清理并进程退出</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_exiting) {
+
+            <span class="built_in">c</span> = cycle-&gt;connections;
+
+            <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; cycle-&gt;connection_n; i++) {
+
+                <span class="comment">/* THREAD: lock */</span>
+
+                <span class="keyword">if</span> (<span class="built_in">c</span>[i].fd != -<span class="number">1</span> &amp;&amp; <span class="built_in">c</span>[i].idle) {
+                    <span class="built_in">c</span>[i].close = <span class="number">1</span>;
+                    <span class="built_in">c</span>[i].read-&gt;handler(<span class="built_in">c</span>[i].read);
+                }
+            }
+
+            <span class="keyword">if</span> (ngx_event_timer_rbtree.root == ngx_event_timer_rbtree.sentinel)
+            {
+                ngx_log_error(<span class="type">NGX_LOG_NOTICE</span>, cycle-&gt;log, <span class="number">0</span>, <span class="string">"exiting"</span>);
+
+                ngx_worker_process_exit(cycle);
+            }
+        }
+
+        ngx_log_debug0(<span class="type">NGX_LOG_DEBUG_EVENT</span>, cycle-&gt;log, <span class="number">0</span>, <span class="string">"worker cycle"</span>);
+
+        ngx_process_events_and_timers(cycle);
+</code></pre><blockquote>
+<p><strong>SIGINT信号</strong></p>
+<p>检测到SIGINT信号，调用ngx_worker_process进程退出</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_terminate) {
+            ngx_log_error(NGX_LOG_NOTICE, cycle<span class="subst">-&gt;</span><span class="keyword">log</span>, <span class="number">0</span>, <span class="string">"exiting"</span>);
+
+            ngx_worker_process_exit(cycle);
+        }
+</code></pre><blockquote>
+<p><strong>SIGQUIT信号</strong></p>
+<p>检测到SIGQUIT信号, 管理套接字设置ngx_exiting标志位</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_quit) {
+            <span class="variable">ngx_quit =</span> <span class="number">0</span>;
+            ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, <span class="number">0</span>,
+                          <span class="string">"gracefully shutting down"</span>);
+            ngx_setproctitle(<span class="string">"worker process is shutting down"</span>);
+
+            <span class="keyword">if</span> (!ngx_exiting) {
+                ngx_close_listening_sockets(cycle);
+                <span class="variable">ngx_exiting =</span> <span class="number">1</span>;
+            }
+        }
+</code></pre><blockquote>
+<p><strong>SIGINT信号</strong></p>
+<p>检测到SIGINT信号，重新打开文件</p>
+</blockquote>
+<pre><code>        <span class="keyword">if</span> (ngx_reopen) {
+            ngx_reopen <span class="subst">=</span> <span class="number">0</span>;
+            ngx_log_error(NGX_LOG_NOTICE, cycle<span class="subst">-&gt;</span><span class="keyword">log</span>, <span class="number">0</span>, <span class="string">"reopening logs"</span>);
+            ngx_reopen_files(cycle, <span class="subst">-</span><span class="number">1</span>);
+        }
+    }
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[worker process signal nginx]]>
+    
+    </summary>
+    
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Nginx--master进程的信号处理]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/nginx/2015-01-05-nginx-master-handle-signal/"/>
+    <id>http://don7hao.github.com/2015/01/27/nginx/2015-01-05-nginx-master-handle-signal/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T04:49:58.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>master进程主要负责监控worker子进程务、重启服务、平滑升级、更换日志文件、配置文件实时生效等功能，不需要处理网络事件，不负责业务的执行。</p>
+</blockquote>
+<h2 id="master进程全貌图">master进程全貌图</h2>
+<p><img src="/img/parent_handle_signal.png" alt="parent_handle_signal"> </p>
+<h2 id="master进程中信号的定义:">master进程中信号的定义:</h2>
+<table>
+<thead>
+<tr>
+<th>信号</th>
+<th>全局变量</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QUIT</td>
+<td>ngx_quit</td>
+<td>优雅地关闭整个服务</td>
+</tr>
+<tr>
+<td>TERM 或 INT</td>
+<td>ngx_terminate</td>
+<td>强制关闭整个服务</td>
+</tr>
+<tr>
+<td>USR1</td>
+<td>ngx_reopen</td>
+<td>重新打开服务中的所有文件</td>
+</tr>
+<tr>
+<td>WINCH</td>
+<td>ngx_noaccept</td>
+<td>所有子进程不在accept连接，实际相当于对所有子进程发送QUIT信号</td>
+</tr>
+<tr>
+<td>USR2</td>
+<td>ngx_change_binary</td>
+<td>平滑升级到新版本</td>
+</tr>
+<tr>
+<td>HUP</td>
+<td>ngx_reconfigure</td>
+<td>重新读取配置文件</td>
+</tr>
+<tr>
+<td>CHLD</td>
+<td>ngx_reap</td>
+<td>子进程意外结束，需要监控子进程</td>
+</tr>
+</tbody>
+</table>
+<h2 id="信号处理">信号处理</h2>
+<blockquote>
+<p>信号的接受主要是<a href="http://don6hao.github.io/blog/2015/01/04/nginx-init-signal.html" target="_blank" rel="external">ngx_signal_handler函数</a>来处理，它接收到某信号后会设置对应的全局标志位。<br>ngx_master_process_cycle函数循环检测这些全局标志位并进行对应的操作。</p>
+<p><strong>ngx_master_process_cycle函数</strong></p>
+<p>处理部分主要在ngx_master_process_cycle函数的for循环中</p>
+</blockquote>
+<pre><code>void ngx_master_process_cycle(ngx_cycle_t <span class="keyword">*</span>cycle)
+{
+    /<span class="keyword">*</span>......<span class="keyword">*</span>/
+    sigemptyset(&amp;set);
+    /<span class="keyword">*</span>......<span class="keyword">*</span>/
+    ngx_new_binary = 0;
+    delay = 0;
+    sigio = 0;
+    live = 1;
+    /<span class="keyword">*</span> ...... <span class="keyword">*</span>/
+}
+</code></pre><blockquote>
+<p><strong>for循环开始部分主要处理：</strong></p>
+<p>1.设置定时器,定时发送SIGALRM信号</p>
+<p>2.接收SIGALRM信号后ngx_sigalrm值等于1，delay的值翻倍，延长定时器触发时间</p>
+<p>3.delay还有一个作用就是当接收到SIGINT信号后，delay用来判断等待子进程退出的时间是否超时</p>
+</blockquote>
+<pre><code>for ( ;; ) {
+    if (delay) {
+        if (ngx_sigalrm) {
+            sigio = 0;
+            delay <span class="keyword">*</span>= 2;
+            ngx_sigalrm = 0;
+        }
+
+        /<span class="keyword">*</span>
+         <span class="keyword">*</span>  struct itimerval {
+         <span class="keyword">*</span>      struct timeval it_interval;
+         <span class="keyword">*</span>      struct timeval it_value;
+         <span class="keyword">*</span>  };
+         <span class="keyword">*</span>  struct timeval {
+         <span class="keyword">*</span>      long tv_sec;
+         <span class="keyword">*</span>      long tv_usec;
+         <span class="keyword">*</span>  };
+         <span class="keyword">*</span>  it_interval指定间隔时间，it_value指定初始定时时间。
+         <span class="keyword">*</span>  如果只指定it_value，就是实现一次定时；
+         <span class="keyword">*</span>  如果同时指定 it_interval，则超时后，系统会重新初始化it_value为it_interval，实现重复定时；
+         <span class="keyword">*</span>  两者都清零，则会清除定时器。
+         <span class="keyword">*</span>
+         <span class="keyword">*</span>/
+        itv.it_interval.tv_sec = 0;
+        itv.it_interval.tv_usec = 0;
+        itv.it_value.tv_sec = delay / 1000;
+        itv.it_value.tv_usec = (delay % 1000 ) <span class="keyword">*</span> 1000;
+
+        /<span class="keyword">*</span> 设置定时器
+         <span class="keyword">*</span> ITIMER_REAL: 以系统真实的时间来计算，它送出SIGALRM信号。
+         <span class="keyword">*</span> ITIMER_VIRTUAL: -以该进程在用户态下花费的时间来计算，它送出SIGVTALRM信号。
+         <span class="keyword">*</span> ITIMER_PROF: 以该进程在用户态下和内核态下所费的时间来计算，它送出SIGPROF信号。
+         <span class="keyword">*</span> setitimer()调用成功返回0，否则返回-1。
+         <span class="keyword">*</span> <span class="keyword">*</span>/
+        if (setitimer(ITIMER_REAL, &amp;itv, NULL) == -1) {
+            ngx_log_error(NGX_LOG_ALERT, cycle-&gt;log, ngx_errno,
+                          <span class="string">"setitimer() failed"</span>);
+        }
+    }
+</code></pre><blockquote>
+<p><strong>sigsuspend()函数调用</strong></p>
+<p>该函数调用使得master进程的大部分时间都处于挂起状态，直到master进程收到信号（SIGALRM或其它信号)为止。</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span>
+ <span class="keyword">*</span> 延时等待定时器
+ <span class="keyword">*</span> sigsuspend函数接受一个信号集指针，将信号屏蔽字设置为信号集中的值，
+ <span class="keyword">*</span> 在进程接受到一个信号之前，进程会挂起，当捕捉一个信号，
+ <span class="keyword">*</span> 首先执行信号处理程序，然后从sigsuspend返回，
+ <span class="keyword">*</span> 最后将信号屏蔽字恢复为调用sigsuspend之前的值。
+ <span class="keyword">*</span> 由于前面调用sigemptyset(&amp;set);信号集位空，
+ <span class="keyword">*</span> sigsuspend(&amp;set)不会阻塞任何信号，一直等到有信号发生才走下去
+ <span class="keyword">*</span>
+ <span class="keyword">*</span> <span class="keyword">*</span>/
+sigsuspend(&amp;set);
+
+ngx_time_update();
+</code></pre><blockquote>
+<p><strong>接受GIGCHLD信号</strong></p>
+<p>有子进程意外结束，需要监控所有子进程</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span> 若ngx_reap为1，说明有子进程已退出 <span class="keyword">*</span>/
+if (ngx_reap) {
+    ngx_reap = 0;
+    ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle-&gt;log, 0, <span class="string">"reap children"</span>);
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 这个里面处理退出的子进程(有的worker异常退出，这时我们就需要重启这个worker )，
+     <span class="keyword">*</span> 如果所有子进程都退出则会返回0.
+     <span class="keyword">*</span>/
+    live = ngx_reap_children(cycle);
+}
+</code></pre><blockquote>
+<p>如果没有存活的子进程，并且收到了ngx_terminate或者ngx_quit信号，则master退出</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span> 当live标志位为0（表示所有子进程已经退出）、
+ <span class="keyword">*</span> ngx_terminate标志位为1或者ngx_quit标志位为1表示要退出master进程 
+ <span class="keyword">*</span>/
+if (!live &amp;&amp; (ngx_terminate <span class="string">|| ngx_quit)) {
+    ngx_master_process_exit(cycle);
+}</span>
+</code></pre><blockquote>
+<p>接受到SIGINT信号,若超时强制关闭worker子进程</p>
+</blockquote>
+<pre><code><span class="comment">/* 收到sigint 信号 */</span>
+<span class="keyword">if</span> (ngx_terminate) {
+    <span class="keyword">if</span> (delay == <span class="number">0</span>) {
+        <span class="comment">/* 设置延时 */</span>
+        delay = <span class="number">50</span>;
+    }
+
+    <span class="keyword">if</span> (sigio) {
+        sigio--;
+        <span class="keyword">continue</span>;
+    }
+
+    sigio = ccf-&gt;worker_processes + <span class="number">2</span> <span class="comment">/* cache processes */</span>;
+
+    <span class="keyword">if</span> (delay &gt; <span class="number">1000</span>) {
+        <span class="comment">/* 若超时，强制kill worker */</span>
+        ngx_signal_worker_processes(cycle, SIGKILL);
+    } <span class="keyword">else</span> {
+        <span class="comment">/* 负责发送sigint给worker，让它退出*/</span>
+        ngx_signal_worker_processes(cycle,
+                               ngx_signal_value(NGX_TERMINATE_SIGNAL));
+    }
+
+    <span class="keyword">continue</span>;
+}
+</code></pre><blockquote>
+<p><strong>接收到SIGQUIT信号</strong></p>
+<p>关闭整个服务（子进程和套接字）</p>
+</blockquote>
+<pre><code><span class="comment">/* 收到quit信号 */</span>
+<span class="keyword">if</span> (ngx_quit) {
+    <span class="comment">/* 发送给worker进程quit信号 */</span>
+    ngx_signal_worker_processes(cycle,
+                                ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+
+    ls = cycle-&gt;listening.elts;
+    <span class="keyword">for</span> (n = <span class="number">0</span>; n &lt; cycle-&gt;listening.nelts; n++) {
+        <span class="keyword">if</span> (ngx_close_socket(ls[n].fd) == -<span class="number">1</span>) {
+            ngx_log_error(NGX_LOG_EMERG, cycle-&gt;log, ngx_socket_errno,
+                          ngx_close_socket_n <span class="string">" %V failed"</span>,
+                          &amp;ls[n].addr_text);
+        }
+    }
+    cycle-&gt;listening.nelts = <span class="number">0</span>;
+
+    <span class="keyword">continue</span>;
+}
+</code></pre><blockquote>
+<p><strong>当收到SIGHUP信号:</strong></p>
+<p>重新读取配置文件</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span>
+ <span class="keyword">*</span> 当 nginx 接收到 HUP 信号，它会尝试先解析配置文件（如果指定配置文件，就使用指定的，否则使用默认的），
+ <span class="keyword">*</span> 成功的话，就应用新的配置文件（例如：重新打开日志文件或监听的套接字）。
+ <span class="keyword">*</span> 之后，nginx 运行新的工作进程并从容关闭旧的工作进程。
+ <span class="keyword">*</span> 通知工作进程关闭监听套接字但是继续为当前连接的客户提供服务。
+ <span class="keyword">*</span> 所有客户端的服务完成后，旧的工作进程被关闭。
+ <span class="keyword">*</span> 如果新的配置文件应用失败，nginx 将继续使用旧的配置进行工作。
+ <span class="keyword">*</span>
+ <span class="keyword">*</span>/
+if (ngx_reconfigure) {
+    ngx_reconfigure = 0;
+
+    /<span class="keyword">*</span>
+     <span class="keyword">*</span> 判断是否热代码替换后的新的代码还在运行中(也就是还没退出当前的master)。
+     <span class="keyword">*</span> 如果还在运行中，则不需要重新初始化config。
+     <span class="keyword">*</span>/
+    if (ngx_new_binary) {
+        ngx_start_worker_processes(cycle, ccf-&gt;worker_processes,
+                                   NGX_PROCESS_RESPAWN);
+        ngx_start_cache_manager_processes(cycle, 0);
+        ngx_noaccepting = 0;
+
+        continue;
+    }
+
+    ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, 0, <span class="string">"reconfiguring"</span>);
+
+    /<span class="keyword">*</span> 会尝试先解析配置文件（如果指定配置文件，就使用指定的，否则使用默认的）
+     <span class="keyword">*</span> 成功的话，就应用新的配置文件（例如：重新打开日志文件或监听的套接字）。
+     <span class="keyword">*</span> <span class="keyword">*</span>/
+    cycle = ngx_init_cycle(cycle);
+    if (cycle == NULL) {
+        cycle = (ngx_cycle_t <span class="keyword">*</span>) ngx_cycle;
+        continue;
+    }
+
+    /<span class="keyword">*</span> 使用新的配置文件，并重新启动新的worker <span class="keyword">*</span>/
+    ngx_cycle = cycle;
+    ccf = (ngx_core_conf_t <span class="keyword">*</span>) ngx_get_conf(cycle-&gt;conf_ctx,
+                                           ngx_core_module);
+    ngx_start_worker_processes(cycle, ccf-&gt;worker_processes,
+                               NGX_PROCESS_JUST_RESPAWN);
+    ngx_start_cache_manager_processes(cycle, 1);
+
+    /<span class="keyword">*</span> allow new processes to start <span class="keyword">*</span>/
+    ngx_msleep(100);
+
+    live = 1;
+    /<span class="keyword">*</span> nginx 运行新的工作进程并从容关闭旧的工作进程 <span class="keyword">*</span>/
+    ngx_cycle = cycle;
+    ngx_signal_worker_processes(cycle,
+                                ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+}
+</code></pre><blockquote>
+<p>重启worker子进程,ngx_restart标志位与信号无关</p>
+<p>ngx_restart标志位在ngx_noaccepting（表示正在停止接受新的连接）为1的时候被设置为1</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span>
+ <span class="keyword">*</span> 代码里面是当热代码替换后，如果ngx_noacceptig被设置了，
+ <span class="keyword">*</span> 则设置这个标志位(难道意思是热代码替换前要先停止当前的accept连接？)
+ <span class="keyword">*</span>
+ <span class="keyword">*</span>/
+if (ngx_restart) {
+    ngx_restart = 0;
+    ngx_start_worker_processes(cycle, ccf-&gt;worker_processes,
+                               NGX_PROCESS_RESPAWN);
+    ngx_start_cache_manager_processes(cycle, 0);
+    live = 1;
+}
+</code></pre><blockquote>
+<p><strong>收到USR1信号:</strong></p>
+<p>重新打开服务中的所有文件</p>
+</blockquote>
+<pre><code><span class="comment">/* 重新打开log */</span>
+<span class="keyword">if</span> (ngx_reopen) {
+    ngx_reopen <span class="subst">=</span> <span class="number">0</span>;
+    ngx_log_error(NGX_LOG_NOTICE, cycle<span class="subst">-&gt;</span><span class="keyword">log</span>, <span class="number">0</span>, <span class="string">"reopening logs"</span>);
+    ngx_reopen_files(cycle, ccf<span class="subst">-&gt;</span>user);
+    ngx_signal_worker_processes(cycle,
+                                ngx_signal_value(NGX_REOPEN_SIGNAL));
+}
+</code></pre><blockquote>
+<p><strong>收到USR2信号:</strong></p>
+<p>平滑升级到新版本</p>
+</blockquote>
+<pre><code>/<span class="keyword">*</span> 热代码替换
+ <span class="keyword">*</span> 在不中断服务的情况下 - 新的请求也不会丢失，
+ <span class="keyword">*</span> 使用新的 nginx 可执行程序替换旧的（当升级新版本或添加/删除服务器模块时）。
+ <span class="keyword">*</span> 两个 nginx 实例会同时运行，一起处理输入的请求。
+ <span class="keyword">*</span> 要逐步停止旧的实例，你必须发送 WINCH 信号给旧的主进程
+ <span class="keyword">*</span>
+ <span class="keyword">*</span> <span class="keyword">*</span>/
+if (ngx_change_binary) {
+    ngx_change_binary = 0;
+    ngx_log_error(NGX_LOG_NOTICE, cycle-&gt;log, 0, <span class="string">"changing binary"</span>);
+    /<span class="keyword">*</span> 进行热代码替换，这里是调用execve来执行新的代码 <span class="keyword">*</span>/
+    ngx_new_binary = ngx_exec_new_binary(cycle, ngx_argv);
+}
+</code></pre><blockquote>
+<p><strong>收到WINCH信号:</strong></p>
+<p>所有子进程不再accept,关闭worker子进程</p>
+</blockquote>
+<pre><code><span class="comment">/* 让worker进程停止接受accept连接，并让worker进程从容关闭 */</span>
+<span class="keyword">if</span> (ngx_noaccept) {
+    <span class="variable">ngx_noaccept =</span> <span class="number">0</span>;
+    <span class="variable">ngx_noaccepting =</span> <span class="number">1</span>;
+    ngx_signal_worker_processes(cycle,
+                                ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[master process signal nginx]]>
+    
+    </summary>
+    
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Nginx--进程间的消息传递]]></title>
+    <link href="http://don7hao.github.com/2015/01/27/nginx/2015-01-04-nginx-ipc/"/>
+    <id>http://don7hao.github.com/2015/01/27/nginx/2015-01-04-nginx-ipc/</id>
+    <published>2015-01-27T06:09:20.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="进程间的消息传递">进程间的消息传递</h2>
+<blockquote>
+<p>nginx在多进程模型中主要使用socketpair机制来实现进程间的消息传递。<br>ngx_spawn_process函数中初始化socketpair</p>
+</blockquote>
+<pre><code>{
+    <span class="keyword">if</span> (<span class="keyword">socketpair</span>(AF_UNIX, SOCK_STREAM, <span class="number">0</span>, ngx_processes[<span class="keyword">s</span>].channel) == -<span class="number">1</span>)
+    {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="keyword">log</span>, ngx_errno,
+                      <span class="string">"socketpair() failed while spawning \"<span class="variable">%s</span>\""</span>, name);
+        <span class="keyword">return</span> NGX_INVALID_PID;
+    }
+}
+</code></pre><h2 id="N个worker子进程如何知道彼此信息的？">N个worker子进程如何知道彼此信息的？</h2>
+<blockquote>
+<p>每个进程都维护着一张ngx_processes 是全局的进程表，用来保存存活的子进程信息。</p>
+<p>进程通过ngx_processes获取子进程pid和流管道句柄，实现进程间消息传递</p>
+</blockquote>
+<pre><code><span class="tag">ngx_process_t</span>    <span class="tag">ngx_processes</span><span class="attr_selector">[NGX_MAX_PROCESSES]</span>;
+</code></pre><blockquote>
+<p>ngx_process_t的结构体定义</p>
+</blockquote>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    ngx_pid_t           pid;
+    <span class="comment">/* 进程的退出状态(主要在waitpid中进行处理) */</span>
+    <span class="keyword">int</span>                 status;
+    <span class="comment">/* 进程channel(也就是通过socketpair创建的两个句柄) */</span>
+    ngx_socket_t        channel[<span class="number">2</span>];
+
+    <span class="comment">/* 进程的执行函数（也就是每次spawn，子进程所要执行的那个函数). */</span>
+    ngx_spawn_proc_pt   proc;
+    <span class="keyword">void</span>               *data;
+    <span class="keyword">char</span>               *name;
+
+    <span class="comment">/* 进程的几个状态 */</span>
+    <span class="keyword">unsigned</span>            respawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            just_spawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            detached:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exiting:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exited:<span class="number">1</span>;
+} ngx_process_t;
+</code></pre><h3 id="父进程创建子进程">父进程创建子进程</h3>
+<blockquote>
+<p>父进程调用ngx_start_work_processes函数中，并循环调用ngx_spawn_process函数生成N个worker的子进程,更新ngx_processes进程表</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) {
+    ngx_spawn_process(cycle, ngx_worker_process_cycle, 
+            (<span class="keyword">void</span> *) (intptr_t) i, <span class="string">"worker process"</span>, <span class="class"><span class="keyword">type</span>);</span>
+}
+</code></pre><blockquote>
+<p>父进程每调用一次ngx_spawn_process函数后，将新fork的子进程pid和流管道的句柄channel[0]复制给ch变量(ngx_channel_t)，</p>
+<p>然后调用ngx_pass_open_channel函数把ch消息传递给之前创建的子进程。</p>
+</blockquote>
+<pre><code>{
+    <span class="number">ch</span>.command = NGX_CMD_OPEN_CHANNEL<span class="comment">;</span>
+    <span class="number">ch</span>.pid = ngx_processes[ngx_process_slot]<span class="string">.pid</span><span class="comment">;</span>
+    <span class="number">ch</span>.slot = ngx_process_slot<span class="comment">;</span>
+    <span class="number">ch</span>.fd = ngx_processes[ngx_process_slot]<span class="string">.channel</span>[<span class="number">0</span>]<span class="comment">;</span>
+
+    ngx_pass_open_channel(cycle, &amp;<span class="number">ch</span>)<span class="comment">;</span>
+}
+</code></pre><h3 id="传递新子进程信息给存活的子进程">传递新子进程信息给存活的子进程</h3>
+<blockquote>
+<p>进程间消息格式定义ngx_channel_t结构体，其定义</p>
+</blockquote>
+<pre><code>typedef struct {
+    /<span class="keyword">*</span> 对端将接受到的命令 <span class="keyword">*</span>/
+     ngx_uint_t  command;
+     /<span class="keyword">*</span> 进程id <span class="keyword">*</span>/
+     ngx_pid_t   pid;
+     /<span class="keyword">*</span> 在全局ngx_processess数组中的位置 <span class="keyword">*</span>/
+     ngx_int_t   slot;
+     /<span class="keyword">*</span> 传递的fd <span class="keyword">*</span>/
+     ngx_fd_t    fd;
+} ngx_channel_t;
+</code></pre><blockquote>
+<p>父进程调用ngx_pass_open_channel函数遍历ngx_processes进程表找到存活的子进程们并发送消息(ngx_channel_t)给他们</p>
+</blockquote>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
+{
+    ngx_int_t  i;
+
+    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ngx_last_process; i++) {
+
+        <span class="keyword">if</span> (i == ngx_process_slot
+            || ngx_processes[i].pid == -<span class="number">1</span>
+            || ngx_processes[i].channel[<span class="number">0</span>] == -<span class="number">1</span>)
+        {
+            <span class="keyword">continue</span>;
+        }
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="comment">/* TODO: NGX_AGAIN */</span>
+        <span class="comment">/* 把ch的信息发给前面的子进程们 */</span>
+        ngx_write_channel(ngx_processes[i].channel[<span class="number">0</span>],
+                          ch, <span class="keyword">sizeof</span>(ngx_channel_t), cycle-&gt;<span class="built_in">log</span>);
+    }
+}
+</code></pre><h3 id="存活的子进程接受消息">存活的子进程接受消息</h3>
+<blockquote>
+<p>存活的子进程调用ngx_channel_handle函数（管道可读事件捕捉函数），读取消息并解析成ngx_channel_t，并根据command做相应的处理.</p>
+<p>在ngx_start_work_processes函数中已知ch.command = NGX_CMD_OPEN_CHANNEL;</p>
+<p>存活的子进程收到信息更新自己的ngx_processes进程表，子进程就得到新创建的子进程的信息，子进程间就可以通信。</p>
+</blockquote>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_channel_handler(ngx_event_t *ev)
+{
+    ngx_int_t          n;
+    ngx_channel_t      ch;
+    ngx_connection_t  *c;
+
+    <span class="comment">/* 去掉部分代码 */</span>
+    <span class="keyword">for</span> ( ;; ) {
+        n = ngx_read_channel(c-&gt;fd, &amp;ch, <span class="keyword">sizeof</span>(ngx_channel_t), ev-&gt;<span class="built_in">log</span>);
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">switch</span> (ch.command) {
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">case</span> NGX_CMD_OPEN_CHANNEL:
+         <span class="comment">/* 进程更新自己的ngx_processes进程表，记录其他子进程的相关信息 */</span>
+            ngx_processes[ch.slot].pid = ch.pid;
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = ch.fd;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> NGX_CMD_CLOSE_CHANNEL:
+
+            <span class="keyword">if</span> (close(ngx_processes[ch.slot].channel[<span class="number">0</span>]) == -<span class="number">1</span>) {
+                ngx_log_error(NGX_LOG_ALERT, ev-&gt;<span class="built_in">log</span>, ngx_errno,
+                              <span class="string">"close() channel failed"</span>);
+            }
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = -<span class="number">1</span>;
+            <span class="keyword">break</span>;
+        }
+    }
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[进程间消息传递 nginx]]>
+    
+    </summary>
+    
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
+    
+  </entry>
+  
+</feed>
