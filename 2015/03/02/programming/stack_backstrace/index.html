@@ -113,7 +113,7 @@ The instruction pointer (EIP) register contains the offset in the current code s
 <h4 id="LEAVE操作">LEAVE操作</h4>
 <p>1.This process is reversed<br>2.Load ebp into esp<br>3.Restore ebp from the stack</p>
 <h4 id="RET操作">RET操作</h4>
-<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp<br>2.Increment $esp by 4<br>3.$esp should now point to (contain addy of) $eip<br>4.RET will load the value stored in $esp into the $eip register then jump to that value</p>
+<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp.<br>2.Increment $esp by 4.<br>3.$esp should now point to (contain addy of) $eip.<br>4.RET will load the value stored in $esp into the $eip register then jump to<br>that value.</p>
 <h2 id="栈跟踪">栈跟踪</h2>
   
 	</div>

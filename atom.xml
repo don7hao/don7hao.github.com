@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Write it step by step]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://don7hao.github.com/"/>
-  <updated>2015-03-03T09:31:39.686Z</updated>
+  <updated>2015-03-03T09:33:55.296Z</updated>
   <id>http://don7hao.github.com/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://don7hao.github.com/2015/03/02/programming/stack_backstrace/"/>
     <id>http://don7hao.github.com/2015/03/02/programming/stack_backstrace/</id>
     <published>2015-03-02T08:45:07.000Z</published>
-    <updated>2015-03-03T09:31:18.000Z</updated>
+    <updated>2015-03-03T09:33:51.000Z</updated>
     <content type="html"><![CDATA[<h2 id="基础知识">基础知识</h2>
 <h3 id="寄存器">寄存器</h3>
 <h4 id="eip">eip</h4>
@@ -45,7 +45,7 @@
 <h4 id="LEAVE操作">LEAVE操作</h4>
 <p>1.This process is reversed<br>2.Load ebp into esp<br>3.Restore ebp from the stack</p>
 <h4 id="RET操作">RET操作</h4>
-<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp<br>2.Increment $esp by 4<br>3.$esp should now point to (contain addy of) $eip<br>4.RET will load the value stored in $esp into the $eip register then jump to that value</p>
+<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp.<br>2.Increment $esp by 4.<br>3.$esp should now point to (contain addy of) $eip.<br>4.RET will load the value stored in $esp into the $eip register then jump to<br>that value.</p>
 <h2 id="栈跟踪">栈跟踪</h2>
 ]]></content>
     <summary type="html">
