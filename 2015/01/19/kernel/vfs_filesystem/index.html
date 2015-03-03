@@ -1,0 +1,513 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>File System in Linux | don7hao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
+    
+    <meta name="author" content="don7hao">
+    
+    <meta name="description" content="filesystem 
+Special filesystems are not bound to physical block devices.However, the kernel assigns to each mounted special filesystem a fictitious(虚构">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="don6hao" />
+    <meta name="twitter:title" content="File System in Linux | don7hao&#39;s blog" />
+      
+    
+    
+    <link rel="alternative" href="atom.xml## RSS address." title="don7hao&#39;s blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="don7hao&#39;s blog">don7hao&#39;s blog</a></h1>
+				<h2 class="blog-motto"><a href="/">Write it step by step</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">Home</a></li>
+					
+						<li><a href="/archives">Archives</a></li>
+					
+						<li><a href="/categories">目录</a></li>
+					
+						<li><a href="/about">About</a></li>
+					
+					<li><form class="search" action="//google.com/search" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="search" id="search" autocomplete="off" maxlength="20" placeholder="Search" />
+						<input type="hidden" name="q" value="site:don7hao.github.com">
+					</form></li>
+				</ul>
+			</nav>
+</div>
+    </header>
+    <div id="wrap">
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+    <time datetime="2015-01-19T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/01/19/kernel/vfs_filesystem/" title="File System in Linux" itemprop="url" class="article-time">1月 19 2015</a>
+    </time>
+
+  <h1 itemprop="name" class="article-name">
+    
+      <a href="/2015/01/19/kernel/vfs_filesystem/" title="File System in Linux" itemprop="url"><span>File System in Linux</span></a>
+  </h1>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#filesystem_"><span class="toc-number">1.</span> <span class="toc-text">filesystem </span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#filesystem_register"><span class="toc-number">1.1.</span> <span class="toc-text">filesystem register</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#file_system_type"><span class="toc-number">1.1.1.</span> <span class="toc-text">file_system_type</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#filesystem_register-1"><span class="toc-number">1.1.2.</span> <span class="toc-text">filesystem register</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Filesystem_Handling"><span class="toc-number">1.2.</span> <span class="toc-text">Filesystem Handling</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Namespaces"><span class="toc-number">1.3.</span> <span class="toc-text">Namespaces</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Filesystem_Mounting"><span class="toc-number">1.4.</span> <span class="toc-text">Filesystem Mounting</span></a></li></ol></li></ol>
+		
+		</div>
+		
+		<h1 id="filesystem_">filesystem </h1>
+<p><strong>Special filesystems are not bound to physical block devices</strong>.<br>However, the kernel assigns to each mounted special filesystem a fictitious(虚构的) block device that has the value <strong>0 as major number</strong> and an arbitrary value (different for each special filesystem) as a <strong>minor number</strong>.</p>
+<blockquote>
+<p>ls -F /sys/dev/block/                                                            #ubuntu 14.04</p>
+</blockquote>
+<p>设备号作用：</p>
+<ol>
+<li>主设备号用来标识与设备文件相连的驱动程序(<strong>主设备号用来反映设备类型 </strong>)。</li>
+<li>次编号被驱动程序用来辨别操作的是哪个设备(<strong>次设备号用来区分同类型的设备</strong>)。</li>
+</ol>
+<h2 id="filesystem_register">filesystem register</h2>
+<h3 id="file_system_type">file_system_type</h3>
+<p>Each registered filesystem is represented as a <strong>file_system_type</strong> object</p>
+<pre><code>
+
+struct file_system_type {
+    //filesystem name
+    const char *name;
+    //FS_REQUIRES_DEV: Every filesystem of this type must be located on a physical disk device.
+    //FS_BINARY_MOUNTDATA: The filesystem uses binary mount data.
+    //FS_REVAL_DOT: Always revalidate the “.” and “..” paths in the dentry cache (for network filesystems).
+    //FS_ODD_RENAME: “Rename” operations are “move” operations (for network filesystems).
+    int fs_flags;
+    // allocates a new superblock object and initializes it
+    // if necessary, by reading a disk
+    int (*get_sb) (struct file_system_type *, int, const char *, void *, struct vfsmount *);
+    //method for removing a superblock
+    void (*kill_sb) (struct super_block *);
+    // pointer to the module implementint the filesystem
+    struct module *owner;
+    // pointer to the next element in the list of filesystem types
+    struct file_system_type * next;
+    // head of a list of superblock objects having the same filesystem type
+    struct list_head fs_supers;
+    struct lock_class_key s_lock_key;
+    struct lock_class_key s_umount_key;
+};
+</code></pre>
+
+<h3 id="filesystem_register-1">filesystem register</h3>
+<p>During system initialization, the <strong>register_filesystem( ) function</strong> is invoked for<br>every filesystem specified at compile time;<br>the function inserts the corresponding file_system_type object into the filesystem-type list.</p>
+<p>The register_filesystem( ) function is also invoked when a module implementing a filesystem is loaded.<br>In this case, the filesystem may also be unregistered (by invoking the <strong>unregister_filesystem( ) function</strong>) when the module is unloaded.</p>
+<pre><code>
+static int __init init_ramfs_fs(void)
+{
+    return register_filesystem(&ramfs_fs_type);
+}
+
+static void __exit exit_ramfs_fs(void)
+{
+    unregister_filesystem(&ramfs_fs_type);
+}
+</code></pre>
+
+
+
+<h2 id="Filesystem_Handling">Filesystem Handling</h2>
+<p>Linux makes use of a system’s root filesystem:<br>it is the filesystem that is <strong>directly mounted by the kernel during the booting phase</strong> and<br>that holds the system initialization scripts and the most essential system programs.</p>
+<p>Other filesystems can be mounted—either by the initialization scripts or directly by the users—on directories of already mounted filesystems.<br>Being a tree of directories, every filesystem has its own root directory.<br>The directory on which a filesystem is mounted is called <strong>the mount point</strong>.<br>A mounted filesystem is a child of the mounted filesystem to which the mount point directory belongs.<br>For instance, the /proc virtual filesystem is a child of the system’s root filesystem (and the system’s root filesystem is the parent of /proc).<br><strong>The root directory of a mounted filesystem hides the content of the mount point directory of the parent filesystem, as well as the whole subtree of the parent filesystem below the mount point</strong>. </p>
+<h2 id="Namespaces">Namespaces</h2>
+<p>In a traditional Unix system, there is only one tree of mounted filesystems:<br>starting from the system’s root filesystem, each process can potentially access every file in a mounted filesystem by specifying the proper pathname.<br>In this respect, Linux 2.6 is more refined: every process might have its own tree of mounted filesystems—the so-called <strong>namespace of the process</strong>.</p>
+<p>The root directory of a filesystem can be different from the root directory of a process:<br> the process’s root directory is the directory corresponding to the “ / ” pathname.<br>By default, the process’ root directory coincides with the root directory of the system’s root filesystem, but it can be changed by invoking the <strong>chroot()</strong> system call.</p>
+<p>When a process mounts or unmounts a filesystem, it only modifies its namespace.<br>The namespace of a process is represented by a <strong>namespace structure</strong> pointed to by the namespace field of the process descriptor.</p>
+<pre><code>
+struct namespace {
+    //usage counter(how many processes share the namespace)
+    atomic_t     count;
+    //represents the root of the tree of mounted filesystems of this namespace
+    struct vfsmount *    root;
+    //the head of a doubly linked circular list collecting all mounted filesystem that belong to the namespace.
+    struct list_head    list;
+    wait_queue_head_t poll;
+    int event;
+};
+</code></pre>
+
+<h2 id="Filesystem_Mounting">Filesystem Mounting</h2>
+<p>Linux is possible to mount the same filesystem several times.<br>Of course, if a filesystem is mounted n times, its root directory can be accessed through n mount points, one per mount peration.<br>Although the same filesystem can be accessed by using different mount points, it is really unique.<br>Thus, there is <strong>only one superblock object for all of them</strong>, no matter of how many times it has been mounted.</p>
+<blockquote>
+<p>mount -t ext2 /dev/fd0 /flp</p>
+</blockquote>
+<p>Mounted filesystems form a hierarchy(层级):<br>the mount point of a filesystem might be a directory of a second filesystem, which in turn is already mounted over a third file-system, and so on. </p>
+<p>It is also possible to stack multiple mounts on a single mount point.<br>Each new mount on the same mount point hides the previously mounted filesystem,<br>although processes already using the files and directories under the old mount can continue to do so.<br><strong>When the topmost mounting is removed, then the next lower mount is once more made visible</strong>.</p>
+<blockquote>
+<p>ubuntu 14.04<br>mount -t ramfs /dev/block/1:0 /flp<br>touch /flp/hello;mkdir /flp/mnt<br>mount -t ramfs /dev/block/1:0 /flp/mnt<br>touch /flp/world<br>mount -t ramfs /dev/block/1:0 /flp/mnt<br>ls /flp/mnt     #看一下输出是什么<br>umount /flp/mnt<br>ls /flp/mnt   #看一下输出是什么<br>umount /flp/mnt<br>ls /flp/mnt #看一下输出是什么<br>ls /flp         #看一下输出是什么</p>
+</blockquote>
+<p>As you can imagine, keeping track of mounted filesystems can quickly become a nightmare.<br>For each mount operation, the kernel must save in memory the mount point and the mount flags,<br>as well as <strong>the relationships between the filesystem to be mounted and the other mounted filesystems</strong>.<br>Such information is stored in a mounted filesystem descriptor of type <strong>vfsmount</strong> .</p>
+<pre><code>
+struct vfsmount {
+    //pointers for the hash table list
+    struct list_head mnt_hash;
+    //pointers to the parent filesystem on which this filesystem is mounted
+    struct vfsmount *mnt_parent;    /* fs we are mounted on */
+    //pointers to the dentry of the mount point directory where the filesystem
+    //is mounted
+    struct dentry *mnt_mountpoint;    /* dentry of mountpoint */
+    //pointers to the dentry of the root directory of this filesystem
+    struct dentry *mnt_root;    /* root of the mounted tree */
+    //pointers to the superblock object of this filesystem
+    struct super_block *mnt_sb;    /* pointer to superblock */
+    //head of a list including all filesystem descriptors mounted on directories
+    //of this filesystem
+    struct list_head mnt_mounts;    /* list of children, anchored here */
+    //pointers for the mnt_mounts list of mounted filesystem descriptors
+    struct list_head mnt_child;    /* and going through their mnt_child */
+    //usage counter(increased to forbid filesystem unmounting)
+    atomic_t mnt_count;
+    int mnt_flags;
+    //flag set to true if the filesystem is marked as expired
+    //(the filesystem can be automatically umounted if the flag is set and no
+    //one is using it)
+    int mnt_expiry_mark;     /* true if marked for expiry */
+    char *mnt_devname;     /* Name of device e.g. /dev/dsk/hda1 */
+    //pointers for namespace's list of mounted filesystem descriptors
+    struct list_head mnt_list;
+    struct list_head mnt_expire;    /* link in fs-specific expiry list */
+    struct list_head mnt_share;    /* circular list of shared mounts */
+    struct list_head mnt_slave_list;/* list of slave mounts */
+    struct list_head mnt_slave;    /* slave list entry */
+    struct vfsmount *mnt_master;    /* slave is on master->mnt_slave_list */
+    //pointer to the namespace of the process that a mounted the filesystem
+    struct namespace *mnt_namespace; /* containing namespace */
+    int mnt_pinned;
+};</code></pre>
+
+
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/kernel/">kernel</a>
+</div>
+
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://don7hao.github.com/2015/01/19/kernel/vfs_filesystem/" data-title="File System in Linux | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞">
+  <strong>上一篇：</strong><br/>
+  <span>
+  异步非阻塞和同步非阻塞</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/01/02/kernel/ctags与vim命令快速查看内核源代码/"  title="vim命令快速查看内核源代码">
+ <strong>下一篇：</strong><br/> 
+ <span>vim命令快速查看内核源代码
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<div class="ds-thread"></div>
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/Libeio/" title="Libeio">Libeio<sup>2</sup></a></li>
+		
+			<li><a href="/categories/Nginx/" title="Nginx">Nginx<sup>5</sup></a></li>
+		
+			<li><a href="/categories/Python/" title="Python">Python<sup>2</sup></a></li>
+		
+			<li><a href="/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/" title="TCP_IP.Architecture.Design.and.Implementation.in.Linux">TCP_IP.Architecture.Design.and.Implementation.in.Linux<sup>3</sup></a></li>
+		
+			<li><a href="/categories/algorithm/" title="algorithm">algorithm<sup>4</sup></a></li>
+		
+			<li><a href="/categories/kernel/" title="kernel">kernel<sup>6</sup></a></li>
+		
+			<li><a href="/categories/libev/" title="libev">libev<sup>1</sup></a></li>
+		
+			<li><a href="/categories/programming/" title="programming">programming<sup>3</sup></a></li>
+		
+			<li><a href="/categories/read/" title="read">read<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+      <li><a href="http://yangjian.me" target="_blank" title="YangJian">Alimon's Blog</a></li>
+      <li><a href="http://ragingcat.info" target="_blank" title="ragingcat">RagingCat's Blog</a></li>
+    </ul>
+</div>
+
+
+  <div class="rsspart">
+	<a href="atom.xml## RSS address." target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+</div>
+    <footer><div id="footer" >
+	
+    <div class="social-font" class="clearfix">
+        
+        
+        <a href="https://github.com/don7hao" target="_blank" class="icon-github" title="github"></a>
+        
+        
+        
+        <a href="https://twitter.com/don6hao" target="_blank" class="icon-twitter" title="twitter"></a>
+        
+        
+        
+        
+        <a href="mailto:don7hao@gmail.com" target="_blank" class="icon-email" title="Email Me"></a>
+        
+    </div>
+	<section class="info">
+		<p class="l1">
+            This is don7hao&#39;s personal blog.
+        </p>
+            <!-- <br/> -->
+        <p class="l2">
+			好记性不如烂笔头
+        </p>
+	</section>
+	 
+		<p class="copyright">Powered by <a href="http://zespia.tw/hexo/" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/RagingCat/hexo-theme-ragingcat" target="_blank" title="hexo-theme-ragingcat">Raging Cat</a> © 2015
+		
+		<a href="http://don7hao.github.com/about" target="_blank" title="don7hao">don7hao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.0.3.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize();
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"don7hao"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0]
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script>
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  $('.article-content').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox')) return;
+      var alt = this.alt;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'article' + i);
+    });
+  });
+  if($.fancybox){
+    $('.fancybox').fancybox();
+  }
+});
+</script>
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'null', 'don7hao.info');  
+ga('send', 'pageview');
+</script>
+
+
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+  </body>
+</html>

@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Write it step by step]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://don7hao.github.com/"/>
-  <updated>2015-02-09T09:22:17.202Z</updated>
+  <updated>2015-03-03T09:31:39.686Z</updated>
   <id>http://don7hao.github.com/</id>
   
   <author>
@@ -13,6 +13,52 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[Stack Backstrace]]></title>
+    <link href="http://don7hao.github.com/2015/03/02/programming/stack_backstrace/"/>
+    <id>http://don7hao.github.com/2015/03/02/programming/stack_backstrace/</id>
+    <published>2015-03-02T08:45:07.000Z</published>
+    <updated>2015-03-03T09:31:18.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="基础知识">基础知识</h2>
+<h3 id="寄存器">寄存器</h3>
+<h4 id="eip">eip</h4>
+<p>$eip:instruction pointer</p>
+<p>The instruction pointer (EIP) register contains the offset in the current code segment for the next instruction to be executed.</p>
+<h4 id="ebp">ebp</h4>
+<p>$ebp:Frame Pointer(FP)</p>
+<p>points to fixed location within an activation record (stack frame)</p>
+<blockquote>
+<blockquote>
+<p>If $ebp for some stack frame is stored at addr X then $eip for that frame is stored at addr <strong>X + 4</strong>.</p>
+</blockquote>
+</blockquote>
+<h4 id="esp">esp</h4>
+<p>$esp:Stack Pointer(SP)</p>
+<p>1.points to the top of the stack (lowest mem addy)<br>2.Points to last used word in stack or next available word location on stack (implementation dependent)</p>
+<h4 id="关系图">关系图</h4>
+<p><img src="/img/stack_backstrace_1.png" alt="register" width="800" height="400"> </p>
+
+<h3 id="汇编指令">汇编指令</h3>
+<h4 id="CALL操作">CALL操作</h4>
+<p>1.Push eip : the return address ($ra)<br>2.Push ebp : saves previous frame pointer<br>3.Copy sp into fp : ebp = esp<br>4.The new AR’s frame pointer will be the previous value of the stack pointer<br>5.Advance sp (esp) for allocations on stack (that is, decrement it)<br>6.During CALL, value of eip register pushed onto stack</p>
+<h4 id="LEAVE操作">LEAVE操作</h4>
+<p>1.This process is reversed<br>2.Load ebp into esp<br>3.Restore ebp from the stack</p>
+<h4 id="RET操作">RET操作</h4>
+<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp<br>2.Increment $esp by 4<br>3.$esp should now point to (contain addy of) $eip<br>4.RET will load the value stored in $esp into the $eip register then jump to that value</p>
+<h2 id="栈跟踪">栈跟踪</h2>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h2 id="基础知识">基础知识</h2>
+<h3 id="寄存器">寄存器</h3>
+<h4 id="eip">eip</h4>
+<p>$eip:instruction pointer</p>
+<p>The instruction pointer (EIP) registe]]>
+    </summary>
+    
+      <category term="programming" scheme="http://don7hao.github.com/categories/programming/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[Nginx--FIOASYNC]]></title>
@@ -59,6 +105,159 @@
     </summary>
     
       <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[TCP/IP-->Socket-->PF_INET协议族注册]]></title>
+    <link href="http://don7hao.github.com/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"/>
+    <id>http://don7hao.github.com/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/</id>
+    <published>2015-02-05T09:19:52.000Z</published>
+    <updated>2015-01-20T03:29:18.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
+<blockquote>
+<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
+</blockquote>
+<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
+<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
+<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
+<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
+<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
+<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
+<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
+<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
+};
+
+#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
+
+static struct list_head inetsw[SOCK_MAX];
+</code></pre><blockquote>
+<p>inetsw在inet_init函数中初始化</p>
+</blockquote>
+<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
+<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
+    INIT_LIST_HEAD(r);
+</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
+<blockquote>
+<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
+</blockquote>
+<pre><code>static struct inet_protosw inetsw_array[] =
+{
+        {
+                .<span class="variable">type =</span>       SOCK_STREAM,
+                .<span class="variable">protocol =</span>   IPPROTO_TCP,
+                .<span class="variable">prot =</span>       &amp;tcp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   <span class="number">0</span>,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
+                  INET_PROTOSW_ICSK,
+        },
+
+        {
+                .<span class="variable">type =</span>       SOCK_DGRAM,
+                .<span class="variable">protocol =</span>   IPPROTO_UDP,
+                .<span class="variable">prot =</span>       &amp;udp_prot,
+                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
+                .<span class="variable">capability =</span> -<span class="number">1</span>,
+                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
+       },
+
+
+       {
+               .<span class="variable">type =</span>       SOCK_RAW,
+               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
+               .<span class="variable">prot =</span>       &amp;raw_prot,
+               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
+               .<span class="variable">capability =</span> CAP_NET_RAW,
+               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
+               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
+       }
+};
+</code></pre><blockquote>
+<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</blockquote>
+<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
+    inet_register_protosw(q);
+</code></pre><blockquote>
+<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
+</blockquote>
+<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
+
+<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+{
+    <span class="keyword">struct</span> list_head *lh;
+    <span class="keyword">struct</span> inet_protosw *answer;
+    <span class="keyword">int</span> protocol = p-&gt;protocol;
+    <span class="keyword">struct</span> list_head *last_perm;
+
+    spin_lock_bh(&amp;inetsw_lock);
+
+    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
+        <span class="keyword">goto</span> out_illegal;
+
+    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
+    answer = <span class="literal">NULL</span>;
+    last_perm = &amp;inetsw[p-&gt;type];
+    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+
+        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
+         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
+         * 得到inet_protosw的地址
+         */</span>
+        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+
+        <span class="comment">/* Check only the non-wild match. */</span>
+        <span class="comment">/* 检查是否有已经注册过的socket type
+         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
+         * 且protocol相等，不能覆盖已有的socket类型.
+         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
+         */</span>
+        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
+            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+                <span class="keyword">break</span>;
+            last_perm = lh;
+        }
+
+        answer = <span class="literal">NULL</span>;
+    }
+    <span class="keyword">if</span> (answer)
+        <span class="keyword">goto</span> out_permanent;
+
+    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
+     * the new entry does not override a permanent entry when matched with
+     * a wild-card protocol. But it is allowed to override any existing
+     * non-permanent entry.  This means that when we remove this entry, the 
+     * system automatically returns to the old behavior.
+     * 挂链操作
+     */</span>
+    list_add_rcu(&amp;p-&gt;list, last_perm);
+<span class="keyword">out</span>:
+    spin_unlock_bh(&amp;inetsw_lock);
+
+    synchronize_net();
+
+    <span class="keyword">return</span>;
+
+out_permanent:
+    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
+           protocol);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+
+out_illegal:
+    printk(KERN_ERR
+           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
+           p-&gt;type);
+    <span class="keyword">goto</span> <span class="keyword">out</span>;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[inetsw struct inet_protosw]]>
+    
+    </summary>
+    
+      <category term="TCP_IP.Architecture.Design.and.Implementation.in.Linux" scheme="http://don7hao.github.com/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/"/>
     
   </entry>
   
@@ -438,155 +637,263 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
   </entry>
   
   <entry>
-    <title><![CDATA[TCP/IP-->Socket-->PF_INET协议族注册]]></title>
-    <link href="http://don7hao.github.com/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/"/>
-    <id>http://don7hao.github.com/2015/02/05/tcp_ip_arch/2015-01-07-socket-inetsw_or_inet_protosw/</id>
+    <title><![CDATA[Nginx--信号]]></title>
+    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/"/>
+    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/</id>
     <published>2015-02-05T09:19:52.000Z</published>
-    <updated>2015-01-20T03:29:18.000Z</updated>
-    <content type="html"><![CDATA[<h2 id="inetsw结构体"><strong>inetsw结构体</strong></h2>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="信号的初始化">信号的初始化</h2>
 <blockquote>
-<p>inetsw是指向链表的数组，每个数组成员都指向的链表代表不同的网络协议类型,比如TCP，UDP或RAW等。</p>
+<p>nginx启动的时候会调用ngx_init_signals函数遍历signals中的信号并进行信号处理函数注册</p>
 </blockquote>
-<pre><code><span class="class"><span class="keyword">enum</span> <span class="title">sock_type</span> </span>{
-<span class="constant">    SOCK_DGRAM</span>    = <span class="number">1</span>,
-<span class="constant">    SOCK_STREAM</span>    = <span class="number">2</span>,
-<span class="constant">    SOCK_RAW</span>    = <span class="number">3</span>,
-<span class="constant">    SOCK_RDM</span>    = <span class="number">4</span>,
-<span class="constant">    SOCK_SEQPACKET</span>    = <span class="number">5</span>,
-<span class="constant">    SOCK_DCCP</span>    = <span class="number">6</span>,
-<span class="constant">    SOCK_PACKET</span>    = <span class="number">10</span>,
-};
-
-#define SOCK_MAX (SOCK_PACKET + <span class="number">1</span>)
-
-static struct list_head inetsw[SOCK_MAX];
-</code></pre><blockquote>
-<p>inetsw在inet_init函数中初始化</p>
-</blockquote>
-<pre><code><span class="comment">/* Register the socket-side information for inet_create. */</span>
-<span class="keyword">for</span> (r = &amp;inetsw[<span class="number">0</span>]; r &lt; &amp;inetsw[SOCK_MAX]; ++r)
-    INIT_LIST_HEAD(r);
-</code></pre><h2 id="inetsw_array结构体"><strong>inetsw_array结构体</strong></h2>
+<h2 id="signals结构体">signals结构体</h2>
 <blockquote>
-<p>包含PF_INET协议族的所有网络协议类型的信息。INET网络协议类型：TCP—SOCK_STREAM, UDP—SOCK_DGRAM, IP—SOCK_RAW</p>
+<p>ngx_signal_t结构体</p>
 </blockquote>
-<pre><code>static struct inet_protosw inetsw_array[] =
-{
-        {
-                .<span class="variable">type =</span>       SOCK_STREAM,
-                .<span class="variable">protocol =</span>   IPPROTO_TCP,
-                .<span class="variable">prot =</span>       &amp;tcp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_stream_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   <span class="number">0</span>,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT |
-                  INET_PROTOSW_ICSK,
-        },
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    <span class="keyword">int</span>     signo;
+    <span class="built_in">char</span>   *signame;
+    <span class="built_in">char</span>   *name;
+    <span class="keyword">void</span>  (*handler)(<span class="keyword">int</span> signo);
+} ngx_signal_t;
+</code></pre><h2 id="signals初始化">signals初始化</h2>
+<blockquote>
+<p>主要包含nginx需要处理的信号量和对应的信号处理函数（ngx_signal_handler或者SIG_IGN)</p>
+</blockquote>
+<pre><code>ngx_signal_t  signals[] = {
+    { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_RECONFIGURE_SIGNAL),
+      <span class="string">"reload"</span>,
+      ngx_signal_handler },
 
-        {
-                .<span class="variable">type =</span>       SOCK_DGRAM,
-                .<span class="variable">protocol =</span>   IPPROTO_UDP,
-                .<span class="variable">prot =</span>       &amp;udp_prot,
-                .<span class="variable">ops =</span>        &amp;inet_dgram_ops,
-                .<span class="variable">capability =</span> -<span class="number">1</span>,
-                .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-                .<span class="variable">flags =</span>      INET_PROTOSW_PERMANENT,
-       },
+    { ngx_signal_value(NGX_REOPEN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_REOPEN_SIGNAL),
+      <span class="string">"reopen"</span>,
+      ngx_signal_handler },
 
+    { ngx_signal_value(NGX_NOACCEPT_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_NOACCEPT_SIGNAL),
+      <span class="string">""</span>,
+      ngx_signal_handler },
 
-       {
-               .<span class="variable">type =</span>       SOCK_RAW,
-               .<span class="variable">protocol =</span>   IPPROTO_IP,    <span class="comment">/* wild card */</span>
-               .<span class="variable">prot =</span>       &amp;raw_prot,
-               .<span class="variable">ops =</span>        &amp;inet_sockraw_ops,
-               .<span class="variable">capability =</span> CAP_NET_RAW,
-               .<span class="variable">no_check =</span>   UDP_CSUM_DEFAULT,
-               .<span class="variable">flags =</span>      INET_PROTOSW_REUSE,
-       }
+    { ngx_signal_value(NGX_TERMINATE_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_TERMINATE_SIGNAL),
+      <span class="string">"stop"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_SHUTDOWN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_SHUTDOWN_SIGNAL),
+      <span class="string">"quit"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_CHANGEBIN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_CHANGEBIN_SIGNAL),
+      <span class="string">""</span>,
+      ngx_signal_handler },
+
+    { SIGALRM, <span class="string">"SIGALRM"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGINT, <span class="string">"SIGINT"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGIO, <span class="string">"SIGIO"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGCHLD, <span class="string">"SIGCHLD"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGSYS, <span class="string">"SIGSYS, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
+
+    { SIGPIPE, <span class="string">"SIGPIPE, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
+
+    { <span class="number">0</span>, <span class="keyword">NULL</span>, <span class="string">""</span>, <span class="keyword">NULL</span> }
 };
-</code></pre><blockquote>
-<p>在inet_init函数中调用inet_register_protosw函数把inetsw_array的成员插入到inetsw对应的链表中</p>
+</code></pre><h2 id="ngx_init_signals">ngx_init_signals</h2>
+<blockquote>
+<p>信号初始化，遍历signals,注册信号处理函数</p>
 </blockquote>
-<pre><code><span class="keyword">for</span> (q = inetsw_array; q &lt; &amp;inetsw_array[INETSW_ARRAY_LEN]; ++q)
-    inet_register_protosw(q);
-</code></pre><blockquote>
-<p>inetsw_array的每个成员根据.type插入到inetsw[type]的链表中</p>
-</blockquote>
-<pre><code><span class="preprocessor">#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))</span>
-
-<span class="keyword">void</span> inet_register_protosw(<span class="keyword">struct</span> inet_protosw *p)
+<pre><code>ngx_int_t
+ngx_init_signals(ngx_log_t *log)
 {
-    <span class="keyword">struct</span> list_head *lh;
-    <span class="keyword">struct</span> inet_protosw *answer;
-    <span class="keyword">int</span> protocol = p-&gt;protocol;
-    <span class="keyword">struct</span> list_head *last_perm;
+    ngx_signal_t      *<span class="keyword">sig</span>;
+    <span class="keyword">struct</span> sigaction   sa;
 
-    spin_lock_bh(&amp;inetsw_lock);
+    <span class="comment">/* 遍历signals,注册信号处理函数 */</span>
+    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
+        ngx_memzero(&amp;sa, sizeof(<span class="keyword">struct</span> sigaction));
+        sa.sa_handler = <span class="keyword">sig</span>-&gt;handler;
+        sigemptyset(&amp;sa.sa_mask);
+        <span class="keyword">if</span> (sigaction(<span class="keyword">sig</span>-&gt;signo, &amp;sa, NULL) == -<span class="number">1</span>) {
+            <span class="comment">/* ...... */</span>
+        }
+    }
 
-    <span class="keyword">if</span> (p-&gt;type &gt;= SOCK_MAX)
-        <span class="keyword">goto</span> out_illegal;
+    return NGX_OK;
+}
+</code></pre><h2 id="ngx_signal_handler">ngx_signal_handler</h2>
+<blockquote>
+<p>信号处理函数,主要分为两个部分：</p>
+<p>1.MASTER/SINGLE进程的信号处理，接收到某信号后设置对应的全局标志位</p>
+<p>比如收到QUIT信号后，设置ngx_terminate的值为1</p>
+<p>2.WORKER/HELPER进程的信号处理，接收到某信号后设置对应的全局标志位</p>
+</blockquote>
+<pre><code>void
+ngx_signal_handler(<span class="built_in">int</span> signo)
+{
+    <span class="built_in">char</span>            *action;
+    ngx_int_t        ignore;
+    ngx_err_t        err;
+    ngx_signal_t    *<span class="keyword">sig</span>;
 
-    <span class="comment">/* If we are trying to override a permanent protocol, bail. */</span>
-    answer = <span class="literal">NULL</span>;
-    last_perm = &amp;inetsw[p-&gt;type];
-    list_for_each(lh, &amp;inetsw[p-&gt;type]) {
+    ignore = <span class="number">0</span>;
 
-        <span class="comment">/* 通过list_entry计算出struct inet_protosw的地址
-         * inet_protosw的成员list地址减去list在inet_protosw中的偏移量
-         * 得到inet_protosw的地址
-         */</span>
-        answer = list_entry(lh, <span class="keyword">struct</span> inet_protosw, list);
+    err = ngx_errno;
 
-        <span class="comment">/* Check only the non-wild match. */</span>
-        <span class="comment">/* 检查是否有已经注册过的socket type
-         * 若flags中的INET_PROTOSW_PERMANENT(表示不能被移除的协议)位等于1
-         * 且protocol相等，不能覆盖已有的socket类型.
-         * 直接break跳出循环，answer不等于NULL，跳转到out_permanent
-         */</span>
-        <span class="keyword">if</span> (INET_PROTOSW_PERMANENT &amp; answer-&gt;flags) {
-            <span class="keyword">if</span> (protocol == answer-&gt;protocol)
+    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
+        <span class="keyword">if</span> (<span class="keyword">sig</span>-&gt;signo == signo) {
+            break;
+        }
+    }
+
+    ngx_time_sigsafe_update();
+
+    action = <span class="string">""</span>;
+
+    switch (ngx_process) {
+</code></pre><blockquote>
+<p><strong>master进程的信号处理</strong></p>
+</blockquote>
+<pre><code>    <span class="keyword">case</span> NGX_PROCESS_MASTER:
+    <span class="keyword">case</span> NGX_PROCESS_SINGLE:
+        <span class="keyword">switch</span> (signo) {
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
+            <span class="comment">/* 如果接受到quit信号，则准备退出进程。*/</span>
+            ngx_quit = <span class="number">1</span>;
+            action = <span class="string">", shutting down"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
+        <span class="keyword">case</span> SIGINT:
+            <span class="comment">/* 如果接受到quit信号，则准备kill worker进程。*/</span>
+            ngx_terminate = <span class="number">1</span>;
+            action = <span class="string">", exiting"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* winch信号，停止接受accept */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
+            <span class="keyword">if</span> (ngx_daemonized) {
+                ngx_noaccept = <span class="number">1</span>;
+                action = <span class="string">", stop accepting connections"</span>;
+            }
+            <span class="keyword">break</span>;
+        <span class="comment">/* sighup信号用来reconfig */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
+            ngx_reconfigure = <span class="number">1</span>;
+            action = <span class="string">", reconfiguring"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 用户信号 ，重新打开log */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
+            ngx_reopen = <span class="number">1</span>;
+            action = <span class="string">", reopening logs"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 热代码替换 */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
+            <span class="keyword">if</span> (getppid() &gt; <span class="number">1</span> || ngx_new_binary &gt; <span class="number">0</span>) {
+
+                <span class="comment">/*
+                 * Ignore the signal in the new binary if its parent is
+                 * not the init process, i.e. the old binary's process
+                 * is still running.  Or ignore the signal in the old binary's
+                 * process if the new binary's process is already running.
+                 * 若进程的父进程（old 代码进程是父进程）不是init进程（getppid==1)，忽略此信号。
+                 * 新的代码进程已在运行中（ngx_new_binary &gt; 0)，old代码进程忽略信号，
+                 */</span>
+
+                action = <span class="string">", ignoring"</span>;
+                ignore = <span class="number">1</span>;
                 <span class="keyword">break</span>;
-            last_perm = lh;
+            }
+            <span class="comment">/* 正常情况下，需要热代码替换。设置标志位 */</span>
+            ngx_change_binary = <span class="number">1</span>;
+            action = <span class="string">", changing binary"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> SIGALRM:
+            ngx_sigalrm = <span class="number">1</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> SIGIO:
+            ngx_sigio = <span class="number">1</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 子进程退出 */</span>
+        <span class="keyword">case</span> SIGCHLD:
+            ngx_reap = <span class="number">1</span>;
+            <span class="keyword">break</span>;
         }
 
-        answer = <span class="literal">NULL</span>;
+        <span class="keyword">break</span>;
+</code></pre><blockquote>
+<p><strong>worker进程的信号处理</strong></p>
+</blockquote>
+<pre><code>    <span class="comment">/* worker的信号处理 */</span>
+    <span class="keyword">case</span> NGX_PROCESS_WORKER:
+    <span class="keyword">case</span> NGX_PROCESS_HELPER:
+        <span class="keyword">switch</span> (signo) {
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
+            <span class="keyword">if</span> (!ngx_daemonized) {
+                <span class="keyword">break</span>;
+            }
+            ngx_debug_quit = <span class="number">1</span>;
+        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
+            ngx_quit = <span class="number">1</span>;
+            action = <span class="string">", shutting down"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
+        <span class="keyword">case</span> SIGINT:
+            ngx_terminate = <span class="number">1</span>;
+            action = <span class="string">", exiting"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
+            ngx_reopen = <span class="number">1</span>;
+            action = <span class="string">", reopening logs"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
+        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
+        <span class="keyword">case</span> SIGIO:
+            action = <span class="string">", ignoring"</span>;
+            <span class="keyword">break</span>;
+        }
+
+        <span class="keyword">break</span>;
     }
-    <span class="keyword">if</span> (answer)
-        <span class="keyword">goto</span> out_permanent;
 
-    <span class="comment">/* Add the new entry after the last permanent entry if any, so that
-     * the new entry does not override a permanent entry when matched with
-     * a wild-card protocol. But it is allowed to override any existing
-     * non-permanent entry.  This means that when we remove this entry, the 
-     * system automatically returns to the old behavior.
-     * 挂链操作
+    ngx_log_error(NGX_LOG_NOTICE, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
+                  <span class="string">"signal %d (%s) received%s"</span>, signo, sig<span class="variable">-&gt;signame</span>, action);
+
+    <span class="keyword">if</span> (ignore) {
+        ngx_log_error(NGX_LOG_CRIT, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
+                      <span class="string">"the changing binary signal is ignored: "</span>
+                      <span class="string">"you should shutdown or terminate "</span>
+                      <span class="string">"before either old or new binary's process"</span>);
+    }
+
+    <span class="comment">/*
+     * 最终如果信号是sigchld，我们收割僵尸进程(用waitpid)
      */</span>
-    list_add_rcu(&amp;p-&gt;list, last_perm);
-<span class="keyword">out</span>:
-    spin_unlock_bh(&amp;inetsw_lock);
+    <span class="keyword">if</span> (signo == SIGCHLD) {
+        ngx_process_get_status();
+    }
 
-    synchronize_net();
-
-    <span class="keyword">return</span>;
-
-out_permanent:
-    printk(KERN_ERR <span class="string">"Attempt to override permanent protocol %d.\n"</span>,
-           protocol);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
-
-out_illegal:
-    printk(KERN_ERR
-           <span class="string">"Ignoring attempt to register invalid socket type %d.\n"</span>,
-           p-&gt;type);
-    <span class="keyword">goto</span> <span class="keyword">out</span>;
+    ngx_set_errno(err);
 }
 </code></pre>]]></content>
     <summary type="html">
-    <![CDATA[inetsw struct inet_protosw]]>
+    <![CDATA[signal nginx]]>
     
     </summary>
     
-      <category term="TCP_IP.Architecture.Design.and.Implementation.in.Linux" scheme="http://don7hao.github.com/categories/TCP-IP-Architecture-Design-and-Implementation-in-Linux/"/>
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
     
   </entry>
   
@@ -1562,267 +1869,6 @@ ngx_channel_handler(ngx_event_t *ev)
   </entry>
   
   <entry>
-    <title><![CDATA[Nginx--信号]]></title>
-    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/"/>
-    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/</id>
-    <published>2015-02-05T09:19:52.000Z</published>
-    <updated>2015-01-20T02:54:47.000Z</updated>
-    <content type="html"><![CDATA[<h2 id="信号的初始化">信号的初始化</h2>
-<blockquote>
-<p>nginx启动的时候会调用ngx_init_signals函数遍历signals中的信号并进行信号处理函数注册</p>
-</blockquote>
-<h2 id="signals结构体">signals结构体</h2>
-<blockquote>
-<p>ngx_signal_t结构体</p>
-</blockquote>
-<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
-    <span class="keyword">int</span>     signo;
-    <span class="built_in">char</span>   *signame;
-    <span class="built_in">char</span>   *name;
-    <span class="keyword">void</span>  (*handler)(<span class="keyword">int</span> signo);
-} ngx_signal_t;
-</code></pre><h2 id="signals初始化">signals初始化</h2>
-<blockquote>
-<p>主要包含nginx需要处理的信号量和对应的信号处理函数（ngx_signal_handler或者SIG_IGN)</p>
-</blockquote>
-<pre><code>ngx_signal_t  signals[] = {
-    { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_RECONFIGURE_SIGNAL),
-      <span class="string">"reload"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_REOPEN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_REOPEN_SIGNAL),
-      <span class="string">"reopen"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_NOACCEPT_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_NOACCEPT_SIGNAL),
-      <span class="string">""</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_TERMINATE_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_TERMINATE_SIGNAL),
-      <span class="string">"stop"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_SHUTDOWN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_SHUTDOWN_SIGNAL),
-      <span class="string">"quit"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_CHANGEBIN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_CHANGEBIN_SIGNAL),
-      <span class="string">""</span>,
-      ngx_signal_handler },
-
-    { SIGALRM, <span class="string">"SIGALRM"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGINT, <span class="string">"SIGINT"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGIO, <span class="string">"SIGIO"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGCHLD, <span class="string">"SIGCHLD"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGSYS, <span class="string">"SIGSYS, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
-
-    { SIGPIPE, <span class="string">"SIGPIPE, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
-
-    { <span class="number">0</span>, <span class="keyword">NULL</span>, <span class="string">""</span>, <span class="keyword">NULL</span> }
-};
-</code></pre><h2 id="ngx_init_signals">ngx_init_signals</h2>
-<blockquote>
-<p>信号初始化，遍历signals,注册信号处理函数</p>
-</blockquote>
-<pre><code>ngx_int_t
-ngx_init_signals(ngx_log_t *log)
-{
-    ngx_signal_t      *<span class="keyword">sig</span>;
-    <span class="keyword">struct</span> sigaction   sa;
-
-    <span class="comment">/* 遍历signals,注册信号处理函数 */</span>
-    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
-        ngx_memzero(&amp;sa, sizeof(<span class="keyword">struct</span> sigaction));
-        sa.sa_handler = <span class="keyword">sig</span>-&gt;handler;
-        sigemptyset(&amp;sa.sa_mask);
-        <span class="keyword">if</span> (sigaction(<span class="keyword">sig</span>-&gt;signo, &amp;sa, NULL) == -<span class="number">1</span>) {
-            <span class="comment">/* ...... */</span>
-        }
-    }
-
-    return NGX_OK;
-}
-</code></pre><h2 id="ngx_signal_handler">ngx_signal_handler</h2>
-<blockquote>
-<p>信号处理函数,主要分为两个部分：</p>
-<p>1.MASTER/SINGLE进程的信号处理，接收到某信号后设置对应的全局标志位</p>
-<p>比如收到QUIT信号后，设置ngx_terminate的值为1</p>
-<p>2.WORKER/HELPER进程的信号处理，接收到某信号后设置对应的全局标志位</p>
-</blockquote>
-<pre><code>void
-ngx_signal_handler(<span class="built_in">int</span> signo)
-{
-    <span class="built_in">char</span>            *action;
-    ngx_int_t        ignore;
-    ngx_err_t        err;
-    ngx_signal_t    *<span class="keyword">sig</span>;
-
-    ignore = <span class="number">0</span>;
-
-    err = ngx_errno;
-
-    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
-        <span class="keyword">if</span> (<span class="keyword">sig</span>-&gt;signo == signo) {
-            break;
-        }
-    }
-
-    ngx_time_sigsafe_update();
-
-    action = <span class="string">""</span>;
-
-    switch (ngx_process) {
-</code></pre><blockquote>
-<p><strong>master进程的信号处理</strong></p>
-</blockquote>
-<pre><code>    <span class="keyword">case</span> NGX_PROCESS_MASTER:
-    <span class="keyword">case</span> NGX_PROCESS_SINGLE:
-        <span class="keyword">switch</span> (signo) {
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
-            <span class="comment">/* 如果接受到quit信号，则准备退出进程。*/</span>
-            ngx_quit = <span class="number">1</span>;
-            action = <span class="string">", shutting down"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
-        <span class="keyword">case</span> SIGINT:
-            <span class="comment">/* 如果接受到quit信号，则准备kill worker进程。*/</span>
-            ngx_terminate = <span class="number">1</span>;
-            action = <span class="string">", exiting"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* winch信号，停止接受accept */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
-            <span class="keyword">if</span> (ngx_daemonized) {
-                ngx_noaccept = <span class="number">1</span>;
-                action = <span class="string">", stop accepting connections"</span>;
-            }
-            <span class="keyword">break</span>;
-        <span class="comment">/* sighup信号用来reconfig */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
-            ngx_reconfigure = <span class="number">1</span>;
-            action = <span class="string">", reconfiguring"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 用户信号 ，重新打开log */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
-            ngx_reopen = <span class="number">1</span>;
-            action = <span class="string">", reopening logs"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 热代码替换 */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
-            <span class="keyword">if</span> (getppid() &gt; <span class="number">1</span> || ngx_new_binary &gt; <span class="number">0</span>) {
-
-                <span class="comment">/*
-                 * Ignore the signal in the new binary if its parent is
-                 * not the init process, i.e. the old binary's process
-                 * is still running.  Or ignore the signal in the old binary's
-                 * process if the new binary's process is already running.
-                 * 若进程的父进程（old 代码进程是父进程）不是init进程（getppid==1)，忽略此信号。
-                 * 新的代码进程已在运行中（ngx_new_binary &gt; 0)，old代码进程忽略信号，
-                 */</span>
-
-                action = <span class="string">", ignoring"</span>;
-                ignore = <span class="number">1</span>;
-                <span class="keyword">break</span>;
-            }
-            <span class="comment">/* 正常情况下，需要热代码替换。设置标志位 */</span>
-            ngx_change_binary = <span class="number">1</span>;
-            action = <span class="string">", changing binary"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> SIGALRM:
-            ngx_sigalrm = <span class="number">1</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> SIGIO:
-            ngx_sigio = <span class="number">1</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 子进程退出 */</span>
-        <span class="keyword">case</span> SIGCHLD:
-            ngx_reap = <span class="number">1</span>;
-            <span class="keyword">break</span>;
-        }
-
-        <span class="keyword">break</span>;
-</code></pre><blockquote>
-<p><strong>worker进程的信号处理</strong></p>
-</blockquote>
-<pre><code>    <span class="comment">/* worker的信号处理 */</span>
-    <span class="keyword">case</span> NGX_PROCESS_WORKER:
-    <span class="keyword">case</span> NGX_PROCESS_HELPER:
-        <span class="keyword">switch</span> (signo) {
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
-            <span class="keyword">if</span> (!ngx_daemonized) {
-                <span class="keyword">break</span>;
-            }
-            ngx_debug_quit = <span class="number">1</span>;
-        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
-            ngx_quit = <span class="number">1</span>;
-            action = <span class="string">", shutting down"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
-        <span class="keyword">case</span> SIGINT:
-            ngx_terminate = <span class="number">1</span>;
-            action = <span class="string">", exiting"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
-            ngx_reopen = <span class="number">1</span>;
-            action = <span class="string">", reopening logs"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
-        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
-        <span class="keyword">case</span> SIGIO:
-            action = <span class="string">", ignoring"</span>;
-            <span class="keyword">break</span>;
-        }
-
-        <span class="keyword">break</span>;
-    }
-
-    ngx_log_error(NGX_LOG_NOTICE, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
-                  <span class="string">"signal %d (%s) received%s"</span>, signo, sig<span class="variable">-&gt;signame</span>, action);
-
-    <span class="keyword">if</span> (ignore) {
-        ngx_log_error(NGX_LOG_CRIT, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
-                      <span class="string">"the changing binary signal is ignored: "</span>
-                      <span class="string">"you should shutdown or terminate "</span>
-                      <span class="string">"before either old or new binary's process"</span>);
-    }
-
-    <span class="comment">/*
-     * 最终如果信号是sigchld，我们收割僵尸进程(用waitpid)
-     */</span>
-    <span class="keyword">if</span> (signo == SIGCHLD) {
-        ngx_process_get_status();
-    }
-
-    ngx_set_errno(err);
-}
-</code></pre>]]></content>
-    <summary type="html">
-    <![CDATA[signal nginx]]>
-    
-    </summary>
-    
-      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
-    
-  </entry>
-  
-  <entry>
     <title><![CDATA[Libeio--libeio初始化，REQ/RES队列，锁，线程]]></title>
     <link href="http://don7hao.github.com/2015/02/05/libeio/2015-01-12-libeio_data/"/>
     <id>http://don7hao.github.com/2015/02/05/libeio/2015-01-12-libeio_data/</id>
@@ -2101,6 +2147,70 @@ etp_worker_free (etp_worker *wrk)
   </entry>
   
   <entry>
+    <title><![CDATA[ramfs文件系统]]></title>
+    <link href="http://don7hao.github.com/2015/02/02/kernel/ramfs/"/>
+    <id>http://don7hao.github.com/2015/02/02/kernel/ramfs/</id>
+    <published>2015-02-02T08:45:07.000Z</published>
+    <updated>2015-02-06T06:01:55.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
+<p>一般文件系统的注册都是通过 module_init 宏</p>
+<h3 id="ramfs注册">ramfs注册</h3>
+<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&gt;register_filesystem</p>
+<pre><code>module_init(init_ramfs_fs)
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type ramfs_fs_type = {
+    .name        = <span class="string">"ramfs"</span>,
+    .get_sb        = ramfs_get_sb,
+    .kill_sb    = kill_litter_super,
+};
+
+<span class="keyword">static</span> <span class="keyword">int</span> __init init_ramfs_fs(<span class="keyword">void</span>)
+{
+    <span class="keyword">return</span> register_filesystem(&amp;ramfs_fs_type);
+}
+</code></pre><p>把ramfs挂在到全局file_systems链表上。</p>
+<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
+{
+    <span class="keyword">int</span> res = <span class="number">0</span>;
+    <span class="keyword">struct</span> file_system_type ** p;
+
+    <span class="keyword">if</span> (!fs)
+        <span class="keyword">return</span> -EINVAL;
+    <span class="keyword">if</span> (fs-&gt;next)
+        <span class="keyword">return</span> -EBUSY;
+    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
+    write_lock(&amp;file_systems_lock);
+    p = find_filesystem(fs-&gt;name);
+    <span class="keyword">if</span> (*p)
+        res = -EBUSY;
+    <span class="keyword">else</span>
+        *p = fs;
+    write_unlock(&amp;file_systems_lock);
+    <span class="keyword">return</span> res;
+}
+
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
+<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
+{
+    <span class="keyword">struct</span> file_system_type **p;
+    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
+        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
+            <span class="keyword">break</span>;
+    <span class="keyword">return</span> p;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
+<p>一般文件系统的注册都是通过 module_init 宏</p>
+<h3 id="ramfs注册">ramfs注册</h3>
+<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&g]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
+  
+  <entry>
     <title><![CDATA[字符串转浮点数]]></title>
     <link href="http://don7hao.github.com/2015/02/02/programming/StringToFloat/"/>
     <id>http://don7hao.github.com/2015/02/02/programming/StringToFloat/</id>
@@ -2231,70 +2341,6 @@ etp_worker_free (etp_worker *wrk)
     </summary>
     
       <category term="programming" scheme="http://don7hao.github.com/categories/programming/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[ramfs文件系统]]></title>
-    <link href="http://don7hao.github.com/2015/02/02/kernel/ramfs/"/>
-    <id>http://don7hao.github.com/2015/02/02/kernel/ramfs/</id>
-    <published>2015-02-02T08:45:07.000Z</published>
-    <updated>2015-02-06T06:01:55.000Z</updated>
-    <content type="html"><![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
-<p>一般文件系统的注册都是通过 module_init 宏</p>
-<h3 id="ramfs注册">ramfs注册</h3>
-<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&gt;register_filesystem</p>
-<pre><code>module_init(init_ramfs_fs)
-
-<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type ramfs_fs_type = {
-    .name        = <span class="string">"ramfs"</span>,
-    .get_sb        = ramfs_get_sb,
-    .kill_sb    = kill_litter_super,
-};
-
-<span class="keyword">static</span> <span class="keyword">int</span> __init init_ramfs_fs(<span class="keyword">void</span>)
-{
-    <span class="keyword">return</span> register_filesystem(&amp;ramfs_fs_type);
-}
-</code></pre><p>把ramfs挂在到全局file_systems链表上。</p>
-<pre><code><span class="keyword">int</span> register_filesystem(<span class="keyword">struct</span> file_system_type * fs)
-{
-    <span class="keyword">int</span> res = <span class="number">0</span>;
-    <span class="keyword">struct</span> file_system_type ** p;
-
-    <span class="keyword">if</span> (!fs)
-        <span class="keyword">return</span> -EINVAL;
-    <span class="keyword">if</span> (fs-&gt;next)
-        <span class="keyword">return</span> -EBUSY;
-    INIT_LIST_HEAD(&amp;fs-&gt;fs_supers);
-    write_lock(&amp;file_systems_lock);
-    p = find_filesystem(fs-&gt;name);
-    <span class="keyword">if</span> (*p)
-        res = -EBUSY;
-    <span class="keyword">else</span>
-        *p = fs;
-    write_unlock(&amp;file_systems_lock);
-    <span class="keyword">return</span> res;
-}
-
-<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type *file_systems;
-<span class="keyword">static</span> <span class="keyword">struct</span> file_system_type **find_filesystem(<span class="keyword">const</span> <span class="keyword">char</span> *name)
-{
-    <span class="keyword">struct</span> file_system_type **p;
-    <span class="keyword">for</span> (p=&amp;file_systems; *p; p=&amp;(*p)-&gt;next)
-        <span class="keyword">if</span> (strcmp((*p)-&gt;name,name) == <span class="number">0</span>)
-            <span class="keyword">break</span>;
-    <span class="keyword">return</span> p;
-}
-</code></pre>]]></content>
-    <summary type="html">
-    <![CDATA[<h2 id="文件系统注册">文件系统注册</h2>
-<p>一般文件系统的注册都是通过 module_init 宏</p>
-<h3 id="ramfs注册">ramfs注册</h3>
-<p>注册ramfs文件系统。module_init-&gt;init_ramfs_fs-&g]]>
-    </summary>
-    
-      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
     
   </entry>
   
@@ -2896,21 +2942,6 @@ struct hlist_node </span>{
     <summary type="html">
     <![CDATA[<h1 id="QuickSort">QuickSort</h1>
 <p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p]]>
-    </summary>
-    
-      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[红黑树]]></title>
-    <link href="http://don7hao.github.com/2015/01/28/algorithm/redblack/"/>
-    <id>http://don7hao.github.com/2015/01/28/algorithm/redblack/</id>
-    <published>2015-01-28T08:45:07.000Z</published>
-    <updated>2015-01-28T09:13:18.000Z</updated>
-    <content type="html"><![CDATA[]]></content>
-    <summary type="html">
-    <![CDATA[]]>
     </summary>
     
       <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>

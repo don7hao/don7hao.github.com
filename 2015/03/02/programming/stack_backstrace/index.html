@@ -4,20 +4,22 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>阅读--you should write blogs | don7hao&#39;s blog</title>
+    <title>Stack Backstrace | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" itemprop="description" content="read write blogs">
+    <meta name="description" content="基础知识
+寄存器
+eip
+$eip:instruction pointer
+The instruction pointer (EIP) register contains the offset in the current code segment for the next instruction ">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="阅读--you should write blogs | don7hao&#39;s blog" />
-      
-        <meta name="twitter:description" content="read write blogs" />
+    <meta name="twitter:title" content="Stack Backstrace | don7hao&#39;s blog" />
       
     
     
@@ -66,13 +68,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-02-05T09:19:52.000Z" itemprop="datePublished">
-      <a href="/2015/02/05/read/2015-01-16-read-you_should_write_blogs/" title="阅读--you should write blogs" itemprop="url" class="article-time">2月 5 2015</a>
+    <time datetime="2015-03-02T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/03/02/programming/stack_backstrace/" title="Stack Backstrace" itemprop="url" class="article-time">3月 2 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/02/05/read/2015-01-16-read-you_should_write_blogs/" title="阅读--you should write blogs" itemprop="url"><span>阅读--you should write blogs</span></a>
+      <a href="/2015/03/02/programming/stack_backstrace/" title="Stack Backstrace" itemprop="url"><span>Stack Backstrace</span></a>
   </h1>
 </header>
 
@@ -82,30 +84,44 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#好记性不如烂笔头"><span class="toc-number">1.</span> <span class="toc-text">好记性不如烂笔头</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#写博客的目的"><span class="toc-number">2.</span> <span class="toc-text">写博客的目的</span></a></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#基础知识"><span class="toc-number">1.</span> <span class="toc-text">基础知识</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#寄存器"><span class="toc-number">1.1.</span> <span class="toc-text">寄存器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#eip"><span class="toc-number">1.1.1.</span> <span class="toc-text">eip</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ebp"><span class="toc-number">1.1.2.</span> <span class="toc-text">ebp</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#esp"><span class="toc-number">1.1.3.</span> <span class="toc-text">esp</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#关系图"><span class="toc-number">1.1.4.</span> <span class="toc-text">关系图</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#汇编指令"><span class="toc-number">1.2.</span> <span class="toc-text">汇编指令</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#CALL操作"><span class="toc-number">1.2.1.</span> <span class="toc-text">CALL操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#LEAVE操作"><span class="toc-number">1.2.2.</span> <span class="toc-text">LEAVE操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#RET操作"><span class="toc-number">1.2.3.</span> <span class="toc-text">RET操作</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#栈跟踪"><span class="toc-number">2.</span> <span class="toc-text">栈跟踪</span></a></li></ol>
 		
 		</div>
 		
-		<p>原文地址 : <strong><a href="https://sites.google.com/site/steveyegge2/you-should-write-blogs" target="_blank" rel="external">you-should-write-blogs</a></strong></p>
-<h2 id="好记性不如烂笔头"><strong>好记性不如烂笔头</strong></h2>
-<h2 id="写博客的目的">写博客的目的</h2>
-<ol>
-<li><p>可以记录下自己当时的想法和思路，温故而知新。</p>
-</li>
-<li><p>写博客时候可以让知识在自己的脑海再过一次。</p>
-</li>
-<li><p>提高写作的能力，让自己明白，让看得人明白。</p>
-</li>
-<li><p>与大家分享，与大家交流，改进其中的不足。</p>
-</li>
-</ol>
+		<h2 id="基础知识">基础知识</h2>
+<h3 id="寄存器">寄存器</h3>
+<h4 id="eip">eip</h4>
+<p>$eip:instruction pointer</p>
+<p>The instruction pointer (EIP) register contains the offset in the current code segment for the next instruction to be executed.</p>
+<h4 id="ebp">ebp</h4>
+<p>$ebp:Frame Pointer(FP)</p>
+<p>points to fixed location within an activation record (stack frame)</p>
+<blockquote>
+<blockquote>
+<p>If $ebp for some stack frame is stored at addr X then $eip for that frame is stored at addr <strong>X + 4</strong>.</p>
+</blockquote>
+</blockquote>
+<h4 id="esp">esp</h4>
+<p>$esp:Stack Pointer(SP)</p>
+<p>1.points to the top of the stack (lowest mem addy)<br>2.Points to last used word in stack or next available word location on stack (implementation dependent)</p>
+<h4 id="关系图">关系图</h4>
+<p><img src="/img/stack_backstrace_1.png" alt="register" width="800" height="400"> </p>
+
+<h3 id="汇编指令">汇编指令</h3>
+<h4 id="CALL操作">CALL操作</h4>
+<p>1.Push eip : the return address ($ra)<br>2.Push ebp : saves previous frame pointer<br>3.Copy sp into fp : ebp = esp<br>4.The new AR’s frame pointer will be the previous value of the stack pointer<br>5.Advance sp (esp) for allocations on stack (that is, decrement it)<br>6.During CALL, value of eip register pushed onto stack</p>
+<h4 id="LEAVE操作">LEAVE操作</h4>
+<p>1.This process is reversed<br>2.Load ebp into esp<br>3.Restore ebp from the stack</p>
+<h4 id="RET操作">RET操作</h4>
+<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp<br>2.Increment $esp by 4<br>3.$esp should now point to (contain addy of) $eip<br>4.RET will load the value stored in $esp into the $eip register then jump to that value</p>
+<h2 id="栈跟踪">栈跟踪</h2>
   
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/read/">read</a>
+  <a class="article-category-link" href="/categories/programming/">programming</a>
 </div>
 
 
@@ -114,7 +130,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/02/05/read/2015-01-16-read-you_should_write_blogs/" data-title="阅读--you should write blogs | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/03/02/programming/stack_backstrace/" data-title="Stack Backstrace | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -123,19 +139,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/02/05/tcp_ip_arch/2014-12-31-socket-layer/" title="TCP/IP--&gt;Socket--&gt;套接字创建流程">
-  <strong>上一篇：</strong><br/>
-  <span>
-  TCP/IP--&gt;Socket--&gt;套接字创建流程</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/02/05/python/2014-12-31-协程/"  title="Python--协程">
+<a href="/2015/02/05/nginx/2015-01-04-nginx-fioasync/"  title="Nginx--FIOASYNC">
  <strong>下一篇：</strong><br/> 
- <span>Python--协程
+ <span>Nginx--FIOASYNC
 </span>
 </a>
 </div>
