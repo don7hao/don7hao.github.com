@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Write it step by step]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://don7hao.github.com/"/>
-  <updated>2015-03-03T09:33:55.296Z</updated>
+  <updated>2015-03-04T02:07:08.919Z</updated>
   <id>http://don7hao.github.com/</id>
   
   <author>
@@ -19,41 +19,43 @@
     <link href="http://don7hao.github.com/2015/03/02/programming/stack_backstrace/"/>
     <id>http://don7hao.github.com/2015/03/02/programming/stack_backstrace/</id>
     <published>2015-03-02T08:45:07.000Z</published>
-    <updated>2015-03-03T09:33:51.000Z</updated>
+    <updated>2015-03-04T02:06:18.000Z</updated>
     <content type="html"><![CDATA[<h2 id="基础知识">基础知识</h2>
+<h3 id="stack_frame">stack frame</h3>
+<p>Stack frame（栈帧）是一个为函数保留的区域，用来存储关于参数、局部变量和返回地址的信息。</p>
+<p><img src="/img/stack_frame.png" alt="stack_frame" width="800" height="400"> </p>
+
+
 <h3 id="寄存器">寄存器</h3>
-<h4 id="eip">eip</h4>
-<p>$eip:instruction pointer</p>
-<p>The instruction pointer (EIP) register contains the offset in the current code segment for the next instruction to be executed.</p>
-<h4 id="ebp">ebp</h4>
-<p>$ebp:Frame Pointer(FP)</p>
-<p>points to fixed location within an activation record (stack frame)</p>
+<h4 id="EIP">EIP</h4>
+<p>$eip:instruction pointer<br>EIP寄存器存放下一条要执行的指令地址。</p>
+<h4 id="EBP">EBP</h4>
+<p>$ebp:frame pointer<br>EBP寄存器指向stack frame的基地址。</p>
 <blockquote>
 <blockquote>
 <p>If $ebp for some stack frame is stored at addr X then $eip for that frame is stored at addr <strong>X + 4</strong>.</p>
 </blockquote>
 </blockquote>
-<h4 id="esp">esp</h4>
-<p>$esp:Stack Pointer(SP)</p>
-<p>1.points to the top of the stack (lowest mem addy)<br>2.Points to last used word in stack or next available word location on stack (implementation dependent)</p>
-<h4 id="关系图">关系图</h4>
+<h4 id="ESP">ESP</h4>
+<p>$esp:Stack Pointer(SP)<br>ESP寄存器指向栈顶。</p>
 <p><img src="/img/stack_backstrace_1.png" alt="register" width="800" height="400"> </p>
 
 <h3 id="汇编指令">汇编指令</h3>
 <h4 id="CALL操作">CALL操作</h4>
-<p>1.Push eip : the return address ($ra)<br>2.Push ebp : saves previous frame pointer<br>3.Copy sp into fp : ebp = esp<br>4.The new AR’s frame pointer will be the previous value of the stack pointer<br>5.Advance sp (esp) for allocations on stack (that is, decrement it)<br>6.During CALL, value of eip register pushed onto stack</p>
+<p>把返回地址压入栈中并且跳转到调用函数开始处并且执，具体步骤:<br>1.Push eip : the return address<br>2.Push ebp : saves previous frame pointer<br>3.Copy sp into fp : ebp = esp<br>4.The new AR’s frame pointer will be the previous value of the stack pointer<br>5.Advance sp (esp) for allocations on stack (that is, decrement it)</p>
 <h4 id="LEAVE操作">LEAVE操作</h4>
-<p>1.This process is reversed<br>2.Load ebp into esp<br>3.Restore ebp from the stack</p>
+<p>1.Load ebp into esp<br>2.Restore ebp from the stack</p>
 <h4 id="RET操作">RET操作</h4>
-<p>Before RET, programmer should make sure that stack pointer (esp) is pointing to the eip on the stack; does this via:<br>1.Move contents of $ebp into $esp.<br>2.Increment $esp by 4.<br>3.$esp should now point to (contain addy of) $eip.<br>4.RET will load the value stored in $esp into the $eip register then jump to<br>that value.</p>
+<p>调用RET前，程序员要保证栈指针ESP指向的位置刚好为CALL指令保存的返回地址(EIP)，具体步骤:<br>1.Move contents of $ebp into $esp.<br>2.Increment $esp by 4.<br>3.$esp should now point to $eip.<br>4.RET will load the value stored in $esp into the $eip register then jump to that value.</p>
+<p><img src="/img/stack.jpg" alt="stack" width="800" height="400"> </p>
+
 <h2 id="栈跟踪">栈跟踪</h2>
 ]]></content>
     <summary type="html">
     <![CDATA[<h2 id="基础知识">基础知识</h2>
-<h3 id="寄存器">寄存器</h3>
-<h4 id="eip">eip</h4>
-<p>$eip:instruction pointer</p>
-<p>The instruction pointer (EIP) registe]]>
+<h3 id="stack_frame">stack frame</h3>
+<p>Stack frame（栈帧）是一个为函数保留的区域，用来存储关于参数、局部变量和返回地址的信息。</p>
+<p><img src="/img/sta]]>
     </summary>
     
       <category term="programming" scheme="http://don7hao.github.com/categories/programming/"/>
