@@ -90,7 +90,7 @@ $ebp:frame pointerEBP寄">
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#基础知识"><span class="toc-number">1.</span> <span class="toc-text">基础知识</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#stack_frame"><span class="toc-number">1.1.</span> <span class="toc-text">stack frame</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#寄存器"><span class="toc-number">1.2.</span> <span class="toc-text">寄存器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#EIP"><span class="toc-number">1.2.1.</span> <span class="toc-text">EIP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#EBP"><span class="toc-number">1.2.2.</span> <span class="toc-text">EBP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ESP"><span class="toc-number">1.2.3.</span> <span class="toc-text">ESP</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#汇编指令"><span class="toc-number">1.3.</span> <span class="toc-text">汇编指令</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#CALL操作"><span class="toc-number">1.3.1.</span> <span class="toc-text">CALL操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#LEAVE操作"><span class="toc-number">1.3.2.</span> <span class="toc-text">LEAVE操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#RET操作"><span class="toc-number">1.3.3.</span> <span class="toc-text">RET操作</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#栈跟踪"><span class="toc-number">2.</span> <span class="toc-text">栈跟踪</span></a></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#基础知识"><span class="toc-number">1.</span> <span class="toc-text">基础知识</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#stack_frame"><span class="toc-number">1.1.</span> <span class="toc-text">stack frame</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#寄存器"><span class="toc-number">1.2.</span> <span class="toc-text">寄存器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#EIP"><span class="toc-number">1.2.1.</span> <span class="toc-text">EIP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#EBP"><span class="toc-number">1.2.2.</span> <span class="toc-text">EBP</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ESP"><span class="toc-number">1.2.3.</span> <span class="toc-text">ESP</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#汇编指令"><span class="toc-number">1.3.</span> <span class="toc-text">汇编指令</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#CALL操作"><span class="toc-number">1.3.1.</span> <span class="toc-text">CALL操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#LEAVE操作"><span class="toc-number">1.3.2.</span> <span class="toc-text">LEAVE操作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#RET操作"><span class="toc-number">1.3.3.</span> <span class="toc-text">RET操作</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#栈跟踪"><span class="toc-number">2.</span> <span class="toc-text">栈跟踪</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#代码"><span class="toc-number">2.1.</span> <span class="toc-text">代码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#gdb跟踪"><span class="toc-number">2.2.</span> <span class="toc-text">gdb跟踪</span></a></li></ol></li></ol>
 		
 		</div>
 		
@@ -124,6 +124,75 @@ $ebp:frame pointerEBP寄">
 <p><img src="/img/stack.jpg" alt="stack" width="800" height="400"> </p>
 
 <h2 id="栈跟踪">栈跟踪</h2>
+<h3 id="代码">代码</h3>
+<blockquote>
+<blockquote>
+<p>gcc -g test.c -o test</p>
+</blockquote>
+</blockquote>
+<p>　　#include <stdio.h></stdio.h></p>
+<pre><code><span class="type">void</span> funcc(<span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, c);
+}
+
+<span class="type">void</span> funcb(<span class="type">int</span> b, <span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, b);
+    funcc(c);
+}
+
+<span class="type">void</span> funca(<span class="type">int</span> a, <span class="type">int</span> b, <span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, a);
+    funcb(b, c);
+}
+
+<span class="type">void</span> main()
+{
+    <span class="type">int</span> a = <span class="number">4</span>;
+    <span class="type">int</span> b = <span class="number">3</span>;
+    <span class="type">int</span> c = <span class="number">2</span>;
+    <span class="type">int</span> d = <span class="number">1</span>;
+    funca(a, b, c);
+    printf(<span class="string">"%d\n"</span>, d);
+}
+</code></pre><h3 id="gdb跟踪">gdb跟踪</h3>
+<p>1.对函数funcc设置断点，运行并查看寄存器信息,EIP为0x8048423,EBP为0xbfffefa8。</p>
+<p><img src="/img/gdb_1.png" alt="info reg" width="800" height="400"> </p>
+
+<p>2.对地址0x8048423反汇编，在funcc的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip.png" alt="gdb eip" width="800" height="400"> </p>
+
+<p>3.通过funcc栈帧中EBP指向基地址+4来读取返回地址(0xbfffefa8+4),读取该地址信息得到0x0804845c。<br>对地址0x0804845c反汇编后得到该地址指向leave操作,就是说funcb调用完funcc后要执行的下一条指令就是leave指令。</p>
+<p><img src="/img/gdb_ebp.png" alt="gdb ebp" width="800" height="400"> </p>
+
+<p>4.执行完funcc后进入到funcb的栈帧，查看寄存器信息, EIP为0x804845c,EBP为0xbfffefc8。</p>
+<p><img src="/img/gdb_reg_b.png" alt="info reg_b" width="800" height="400"> </p>
+
+<p>5.对地址0x804845c反汇编，在funcb的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_b.png" alt="gdb eip_b" width="800" height="400"> </p>
+
+<p>6.通过funcb栈帧中EBP指向基地址+4来读取返回地址(0xbfffefc8+4),读取该地址信息得到0x0804845c。<br>对地址0x0804845c反汇编后得到该地址指向leave操作,就是说funca调用完funcb后要执行的下一条指令就是leave指令。</p>
+<p><img src="/img/gdb_ebp_b.png" alt="gdb ebp_b" width="800" height="400"> </p>
+
+<p>7.执行完funcb后进入到funca的栈帧，查看寄存器信息, EIP为0x8048489,EBP为0xbfffefe8。</p>
+<p><img src="/img/gdb_reg_a.png" alt="info reg_a" width="800" height="400"> </p>
+
+<p>8.对地址0x8048489反汇编，在funca的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_a.png" alt="gdb eip_a" width="800" height="400"> </p>
+
+<p>9.通过funca栈帧中EBP指向基地址+4来读取返回地址(0xbfffefe8+4),读取该地址信息得到0x0804845c。<br>对地址0x080484d0反汇编,main调用完funca后要调用的printf。</p>
+<p><img src="/img/gdb_ebp_a.png" alt="gdb ebp_a" width="800" height="400"> </p>
+
+<p>10.执行完funca后进入到main的栈帧，查看寄存器信息, EIP为0x80484d0,EBP为0xbffff018。</p>
+<p><img src="/img/gdb_reg_main.png" alt="info reg_main" width="800" height="400"> </p>
+
+<p>11.对地址0x80484d0反汇编，在main的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_main.png" alt="gdb eip_main" width="800" height="400"> </p>
+
+<p>12.通过funca栈帧中EBP指向基地址+4来读取返回地址(0xbffff018+4),读取该地址信息得到0xb7e30a83。<br>对地址0xb7e30a83反汇编,main返回后就会执行exit操作。</p>
+<p><img src="/img/gdb_ebp_main.png" alt="gdb ebp_main" width="800" height="400"> </p>
   
 	</div>
 		<footer class="article-footer clearfix">

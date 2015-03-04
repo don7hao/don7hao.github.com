@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Write it step by step]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://don7hao.github.com/"/>
-  <updated>2015-03-04T02:16:22.233Z</updated>
+  <updated>2015-03-04T03:17:25.666Z</updated>
   <id>http://don7hao.github.com/</id>
   
   <author>
@@ -19,7 +19,7 @@
     <link href="http://don7hao.github.com/2015/03/02/programming/stack_backstrace/"/>
     <id>http://don7hao.github.com/2015/03/02/programming/stack_backstrace/</id>
     <published>2015-03-02T08:45:07.000Z</published>
-    <updated>2015-03-04T02:16:13.000Z</updated>
+    <updated>2015-03-04T03:16:40.000Z</updated>
     <content type="html"><![CDATA[<h2 id="基础知识">基础知识</h2>
 <h3 id="stack_frame">stack frame</h3>
 <p>Stack frame（栈帧）是一个为函数保留的区域，用来存储关于参数、局部变量和返回地址的信息。</p>
@@ -50,6 +50,75 @@
 <p><img src="/img/stack.jpg" alt="stack" width="800" height="400"> </p>
 
 <h2 id="栈跟踪">栈跟踪</h2>
+<h3 id="代码">代码</h3>
+<blockquote>
+<blockquote>
+<p>gcc -g test.c -o test</p>
+</blockquote>
+</blockquote>
+<p>　　#include <stdio.h></stdio.h></p>
+<pre><code><span class="type">void</span> funcc(<span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, c);
+}
+
+<span class="type">void</span> funcb(<span class="type">int</span> b, <span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, b);
+    funcc(c);
+}
+
+<span class="type">void</span> funca(<span class="type">int</span> a, <span class="type">int</span> b, <span class="type">int</span> c)
+{
+    printf(<span class="string">"%d\n"</span>, a);
+    funcb(b, c);
+}
+
+<span class="type">void</span> main()
+{
+    <span class="type">int</span> a = <span class="number">4</span>;
+    <span class="type">int</span> b = <span class="number">3</span>;
+    <span class="type">int</span> c = <span class="number">2</span>;
+    <span class="type">int</span> d = <span class="number">1</span>;
+    funca(a, b, c);
+    printf(<span class="string">"%d\n"</span>, d);
+}
+</code></pre><h3 id="gdb跟踪">gdb跟踪</h3>
+<p>1.对函数funcc设置断点，运行并查看寄存器信息,EIP为0x8048423,EBP为0xbfffefa8。</p>
+<p><img src="/img/gdb_1.png" alt="info reg" width="800" height="400"> </p>
+
+<p>2.对地址0x8048423反汇编，在funcc的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip.png" alt="gdb eip" width="800" height="400"> </p>
+
+<p>3.通过funcc栈帧中EBP指向基地址+4来读取返回地址(0xbfffefa8+4),读取该地址信息得到0x0804845c。<br>对地址0x0804845c反汇编后得到该地址指向leave操作,就是说funcb调用完funcc后要执行的下一条指令就是leave指令。</p>
+<p><img src="/img/gdb_ebp.png" alt="gdb ebp" width="800" height="400"> </p>
+
+<p>4.执行完funcc后进入到funcb的栈帧，查看寄存器信息, EIP为0x804845c,EBP为0xbfffefc8。</p>
+<p><img src="/img/gdb_reg_b.png" alt="info reg_b" width="800" height="400"> </p>
+
+<p>5.对地址0x804845c反汇编，在funcb的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_b.png" alt="gdb eip_b" width="800" height="400"> </p>
+
+<p>6.通过funcb栈帧中EBP指向基地址+4来读取返回地址(0xbfffefc8+4),读取该地址信息得到0x0804845c。<br>对地址0x0804845c反汇编后得到该地址指向leave操作,就是说funca调用完funcb后要执行的下一条指令就是leave指令。</p>
+<p><img src="/img/gdb_ebp_b.png" alt="gdb ebp_b" width="800" height="400"> </p>
+
+<p>7.执行完funcb后进入到funca的栈帧，查看寄存器信息, EIP为0x8048489,EBP为0xbfffefe8。</p>
+<p><img src="/img/gdb_reg_a.png" alt="info reg_a" width="800" height="400"> </p>
+
+<p>8.对地址0x8048489反汇编，在funca的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_a.png" alt="gdb eip_a" width="800" height="400"> </p>
+
+<p>9.通过funca栈帧中EBP指向基地址+4来读取返回地址(0xbfffefe8+4),读取该地址信息得到0x0804845c。<br>对地址0x080484d0反汇编,main调用完funca后要调用的printf。</p>
+<p><img src="/img/gdb_ebp_a.png" alt="gdb ebp_a" width="800" height="400"> </p>
+
+<p>10.执行完funca后进入到main的栈帧，查看寄存器信息, EIP为0x80484d0,EBP为0xbffff018。</p>
+<p><img src="/img/gdb_reg_main.png" alt="info reg_main" width="800" height="400"> </p>
+
+<p>11.对地址0x80484d0反汇编，在main的栈帧中，EIP存放下一条要执行的语句地址。</p>
+<p><img src="/img/gdb_eip_main.png" alt="gdb eip_main" width="800" height="400"> </p>
+
+<p>12.通过funca栈帧中EBP指向基地址+4来读取返回地址(0xbffff018+4),读取该地址信息得到0xb7e30a83。<br>对地址0xb7e30a83反汇编,main返回后就会执行exit操作。</p>
+<p><img src="/img/gdb_ebp_main.png" alt="gdb ebp_main" width="800" height="400"> </p>
 ]]></content>
     <summary type="html">
     <![CDATA[<h2 id="基础知识">基础知识</h2>
