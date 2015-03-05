@@ -118,9 +118,9 @@ $ebp:frame pointerEBP寄">
 <h4 id="CALL操作">CALL操作</h4>
 <p>把返回地址压入栈中并且跳转到调用函数开始处并且执，具体步骤:<br>1.Push eip : the return address<br>2.Push ebp : saves previous frame pointer<br>3.Copy sp into fp : ebp = esp<br>4.The new AR’s frame pointer will be the previous value of the stack pointer<br>5.Advance sp (esp) for allocations on stack (that is, decrement it)</p>
 <h4 id="LEAVE操作">LEAVE操作</h4>
-<p>1.Load ebp into esp<br>2.Restore ebp from the stack</p>
+<p>1.Load ebp into esp: move %ebp, %esp<br>2.Restore ebp from the stack: pop %ebp</p>
 <h4 id="RET操作">RET操作</h4>
-<p>调用RET前，程序员要保证栈指针ESP指向的位置刚好为CALL指令保存的返回地址(EIP)，具体步骤:<br>1.Move contents of ebp into esp.<br>2.Increment esp by 4.<br>3.esp should now point to eip.<br>4.RET will load the value stored in esp into the $eip register then jump to that value.</p>
+<p>调用RET前，程序员要保证栈指针ESP指向的位置刚好为CALL指令保存的返回地址(EIP)，具体步骤:<br>1.Move contents of ebp into esp.<br>2.Increment esp by 4.<br>3.esp should now point to eip.<br>4.RET will load the value stored in esp into the eip register then jump to that value.</p>
 <p><img src="/img/stack.jpg" alt="stack" width="800" height="400"> </p>
 
 <h2 id="栈跟踪">栈跟踪</h2>
