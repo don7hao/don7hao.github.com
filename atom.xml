@@ -4,7 +4,7 @@
   <subtitle><![CDATA[Write it step by step]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://don7hao.github.com/"/>
-  <updated>2015-03-05T05:36:50.991Z</updated>
+  <updated>2015-04-07T07:15:03.999Z</updated>
   <id>http://don7hao.github.com/</id>
   
   <author>
@@ -13,6 +13,92 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[内核堆栈切换]]></title>
+    <link href="http://don7hao.github.com/2015/04/07/kernel/stack_of_kernel_switch/"/>
+    <id>http://don7hao.github.com/2015/04/07/kernel/stack_of_kernel_switch/</id>
+    <published>2015-04-07T08:45:07.000Z</published>
+    <updated>2015-04-07T07:02:03.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="环境">环境</h1>
+<p>CPU ： x86 32bit<br>内核版本：2.6.18</p>
+<h1 id="进程切换">进程切换</h1>
+<p>为了控制进程的执行，内核必须有能力挂起正在CPU上执行的进程，并恢复以前挂起的某个进程的执行，这叫做进程切换，任务切换，上下文切换</p>
+<blockquote>
+<blockquote>
+<p>schedule()——&gt;context_switch()——&gt;switch_to()——&gt;__switch_to()</p>
+</blockquote>
+</blockquote>
+<p>schedule是主调度函数，当schedule()需要暂停A进程的执行而继续B进程的执行时，就发生了进程之间的切换。<br>进程切换主要有两部分：<br>1、切换全局页表项(这个切换工作由context_switch()完成；<br>2、切换内核堆栈和硬件上下文(__switch_to()主要完成硬件上下文切换，switch_to主要完成内核堆栈切换)。</p>
+<h1 id="thread_struct">thread_struct</h1>
+<p>1.一个进程的硬件上下文主要保存在thread_struct中<br>2.其他信息放在内核态堆栈中</p>
+<pre><code><span class="keyword">struct</span> thread_struct {
+    <span class="comment">/* cached TLS descriptors. */</span>
+        <span class="keyword">struct</span> desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    esp0;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    sysenter_cs;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    eip;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    esp;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    fs;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    gs;
+    <span class="comment">/* Hardware debugging registers */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    debugreg[<span class="number">8</span>];  <span class="comment">/* %%db0-7 debug registers */</span>
+    <span class="comment">/* fault info */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    cr2, trap_no, error_code;
+    <span class="comment">/* floating point info */</span>
+        <span class="keyword">union</span> i387_union    i387;
+    <span class="comment">/* virtual 86 mode info */</span>
+        <span class="keyword">struct</span> vm86_struct __user * vm86_info;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>        screen_bitmap;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>        v86flags, v86mask, saved_esp0;
+        <span class="keyword">unsigned</span> <span class="keyword">int</span>        saved_fs, saved_gs;
+    <span class="comment">/* IO permissions */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    *io_bitmap_ptr;
+         <span class="keyword">unsigned</span> <span class="keyword">long</span>    iopl;
+    <span class="comment">/* max allowed port in the bitmap, in bytes: */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    io_bitmap_max;
+};
+</code></pre><h1 id="内核堆栈切换">内核堆栈切换</h1>
+<p>switch_to利用了prev,next,last三个参数：<br>prev：指向当前进程<br>next：指向被调度的进程<br>last  : 指向当前进程</p>
+<pre><code><span class="variable">#define</span> switch_to(prev,next,last) <span class="keyword">do</span> {                    <span class="subst">\</span>
+    unsigned long esi,edi;                        <span class="subst">\</span>
+    <span class="comment">//下面两步把EFLAGS和EBP入栈保存现场。</span>
+    asm volatile(<span class="string">"pushfl\n\t"</span>        <span class="comment">/* Save flags */</span>    <span class="subst">\</span>
+         <span class="string">"pushl %%ebp\n\t"</span>                    <span class="subst">\</span>
+    <span class="comment">//把ESP的值保存到prev-&gt;thread.esp，保存当前进程上下文</span>
+         <span class="string">"movl %%esp,%0\n\t"</span>    <span class="comment">/* save ESP */</span>        <span class="subst">\</span> 
+    <span class="comment">//把next-&gt;thread.esp值赋值给ESP，堆栈被切换进入到next进程</span>
+         <span class="string">"movl %5,%%esp\n\t"</span>    <span class="comment">/* restore ESP */</span>    <span class="subst">\</span>
+    <span class="comment">//“$1f”指向lable 1</span>
+    <span class="comment">//在prev进程的上下文设置返回地址，返回到下面标号为1处</span>
+    <span class="comment">//一个进程被正常切换出时，保存的eip总是标号为1的那个位置</span>
+    <span class="comment">//把label 1的地址赋值给prev-&gt;thread.eip</span>
+         <span class="string">"movl $1f,%1\n\t"</span>        <span class="comment">/* save EIP */</span>        <span class="subst">\</span>
+    <span class="comment">//把next-&gt;thread.eip的值入栈</span>
+    <span class="comment">//从next进程的上下文中取得该进程的返回地址，放入堆栈中</span>
+         <span class="string">"pushl %6\n\t"</span>        <span class="comment">/* restore EIP */</span>    <span class="subst">\</span>
+    <span class="comment">//调用__switch_to进行硬件上下文切换</span>
+         <span class="string">"jmp __switch_to\n"</span>                <span class="subst">\</span>
+    <span class="comment">//当这个进程再次被调度运行时，恢复在堆栈上的返回地址总是这个1。</span>
+         <span class="string">"1:\t"</span>                        <span class="subst">\</span>
+         <span class="string">"popl %%ebp\n\t"</span>                    <span class="subst">\</span>
+         <span class="string">"popfl"</span>                        <span class="subst">\</span>
+         :<span class="string">"=m"</span> (prev<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>esp),<span class="string">"=m"</span> (prev<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>eip),    <span class="subst">\</span>
+          <span class="string">"=a"</span> (last),<span class="string">"=S"</span> (esi),<span class="string">"=D"</span> (edi)            <span class="subst">\</span>
+         :<span class="string">"m"</span> (next<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>esp),<span class="string">"m"</span> (next<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>eip),    <span class="subst">\</span>
+          <span class="string">"2"</span> (prev), <span class="string">"d"</span> (next));                <span class="subst">\</span>
+} <span class="keyword">while</span> (<span class="number">0</span>)
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="环境">环境</h1>
+<p>CPU ： x86 32bit<br>内核版本：2.6.18</p>
+<h1 id="进程切换">进程切换</h1>
+<p>为了控制进程的执行，内核必须有能力挂起正在CPU上执行的进程，并恢复以前挂起的某个进程的执行，这叫做进程切换，]]>
+    </summary>
+    
+      <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[Stack Backstrace]]></title>
@@ -708,259 +794,146 @@ print(line1(<span class="number">5</span>), line2(<span class="number">5</span>)
   </entry>
   
   <entry>
-    <title><![CDATA[Nginx--信号]]></title>
-    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/"/>
-    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/</id>
+    <title><![CDATA[Nginx--进程间的消息传递]]></title>
+    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-ipc/"/>
+    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-ipc/</id>
     <published>2015-02-05T09:19:52.000Z</published>
     <updated>2015-01-20T02:54:47.000Z</updated>
-    <content type="html"><![CDATA[<h2 id="信号的初始化">信号的初始化</h2>
+    <content type="html"><![CDATA[<h2 id="进程间的消息传递">进程间的消息传递</h2>
 <blockquote>
-<p>nginx启动的时候会调用ngx_init_signals函数遍历signals中的信号并进行信号处理函数注册</p>
+<p>nginx在多进程模型中主要使用socketpair机制来实现进程间的消息传递。<br>ngx_spawn_process函数中初始化socketpair</p>
 </blockquote>
-<h2 id="signals结构体">signals结构体</h2>
+<pre><code>{
+    <span class="keyword">if</span> (<span class="keyword">socketpair</span>(AF_UNIX, SOCK_STREAM, <span class="number">0</span>, ngx_processes[<span class="keyword">s</span>].channel) == -<span class="number">1</span>)
+    {
+        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="keyword">log</span>, ngx_errno,
+                      <span class="string">"socketpair() failed while spawning \"<span class="variable">%s</span>\""</span>, name);
+        <span class="keyword">return</span> NGX_INVALID_PID;
+    }
+}
+</code></pre><h2 id="N个worker子进程如何知道彼此信息的？">N个worker子进程如何知道彼此信息的？</h2>
 <blockquote>
-<p>ngx_signal_t结构体</p>
+<p>每个进程都维护着一张ngx_processes 是全局的进程表，用来保存存活的子进程信息。</p>
+<p>进程通过ngx_processes获取子进程pid和流管道句柄，实现进程间消息传递</p>
+</blockquote>
+<pre><code><span class="tag">ngx_process_t</span>    <span class="tag">ngx_processes</span><span class="attr_selector">[NGX_MAX_PROCESSES]</span>;
+</code></pre><blockquote>
+<p>ngx_process_t的结构体定义</p>
 </blockquote>
 <pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
-    <span class="keyword">int</span>     signo;
-    <span class="built_in">char</span>   *signame;
-    <span class="built_in">char</span>   *name;
-    <span class="keyword">void</span>  (*handler)(<span class="keyword">int</span> signo);
-} ngx_signal_t;
-</code></pre><h2 id="signals初始化">signals初始化</h2>
+    ngx_pid_t           pid;
+    <span class="comment">/* 进程的退出状态(主要在waitpid中进行处理) */</span>
+    <span class="keyword">int</span>                 status;
+    <span class="comment">/* 进程channel(也就是通过socketpair创建的两个句柄) */</span>
+    ngx_socket_t        channel[<span class="number">2</span>];
+
+    <span class="comment">/* 进程的执行函数（也就是每次spawn，子进程所要执行的那个函数). */</span>
+    ngx_spawn_proc_pt   proc;
+    <span class="keyword">void</span>               *data;
+    <span class="keyword">char</span>               *name;
+
+    <span class="comment">/* 进程的几个状态 */</span>
+    <span class="keyword">unsigned</span>            respawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            just_spawn:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            detached:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exiting:<span class="number">1</span>;
+    <span class="keyword">unsigned</span>            exited:<span class="number">1</span>;
+} ngx_process_t;
+</code></pre><h3 id="父进程创建子进程">父进程创建子进程</h3>
 <blockquote>
-<p>主要包含nginx需要处理的信号量和对应的信号处理函数（ngx_signal_handler或者SIG_IGN)</p>
+<p>父进程调用ngx_start_work_processes函数中，并循环调用ngx_spawn_process函数生成N个worker的子进程,更新ngx_processes进程表</p>
 </blockquote>
-<pre><code>ngx_signal_t  signals[] = {
-    { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_RECONFIGURE_SIGNAL),
-      <span class="string">"reload"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_REOPEN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_REOPEN_SIGNAL),
-      <span class="string">"reopen"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_NOACCEPT_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_NOACCEPT_SIGNAL),
-      <span class="string">""</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_TERMINATE_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_TERMINATE_SIGNAL),
-      <span class="string">"stop"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_SHUTDOWN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_SHUTDOWN_SIGNAL),
-      <span class="string">"quit"</span>,
-      ngx_signal_handler },
-
-    { ngx_signal_value(NGX_CHANGEBIN_SIGNAL),
-      <span class="string">"SIG"</span> ngx_value(NGX_CHANGEBIN_SIGNAL),
-      <span class="string">""</span>,
-      ngx_signal_handler },
-
-    { SIGALRM, <span class="string">"SIGALRM"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGINT, <span class="string">"SIGINT"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGIO, <span class="string">"SIGIO"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGCHLD, <span class="string">"SIGCHLD"</span>, <span class="string">""</span>, ngx_signal_handler },
-
-    { SIGSYS, <span class="string">"SIGSYS, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
-
-    { SIGPIPE, <span class="string">"SIGPIPE, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
-
-    { <span class="number">0</span>, <span class="keyword">NULL</span>, <span class="string">""</span>, <span class="keyword">NULL</span> }
-};
-</code></pre><h2 id="ngx_init_signals">ngx_init_signals</h2>
-<blockquote>
-<p>信号初始化，遍历signals,注册信号处理函数</p>
-</blockquote>
-<pre><code>ngx_int_t
-ngx_init_signals(ngx_log_t *log)
-{
-    ngx_signal_t      *<span class="keyword">sig</span>;
-    <span class="keyword">struct</span> sigaction   sa;
-
-    <span class="comment">/* 遍历signals,注册信号处理函数 */</span>
-    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
-        ngx_memzero(&amp;sa, sizeof(<span class="keyword">struct</span> sigaction));
-        sa.sa_handler = <span class="keyword">sig</span>-&gt;handler;
-        sigemptyset(&amp;sa.sa_mask);
-        <span class="keyword">if</span> (sigaction(<span class="keyword">sig</span>-&gt;signo, &amp;sa, NULL) == -<span class="number">1</span>) {
-            <span class="comment">/* ...... */</span>
-        }
-    }
-
-    return NGX_OK;
+<pre><code><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) {
+    ngx_spawn_process(cycle, ngx_worker_process_cycle, 
+            (<span class="keyword">void</span> *) (intptr_t) i, <span class="string">"worker process"</span>, <span class="class"><span class="keyword">type</span>);</span>
 }
-</code></pre><h2 id="ngx_signal_handler">ngx_signal_handler</h2>
+</code></pre><blockquote>
+<p>父进程每调用一次ngx_spawn_process函数后，将新fork的子进程pid和流管道的句柄channel[0]复制给ch变量(ngx_channel_t)，</p>
+<p>然后调用ngx_pass_open_channel函数把ch消息传递给之前创建的子进程。</p>
+</blockquote>
+<pre><code>{
+    <span class="number">ch</span>.command = NGX_CMD_OPEN_CHANNEL<span class="comment">;</span>
+    <span class="number">ch</span>.pid = ngx_processes[ngx_process_slot]<span class="string">.pid</span><span class="comment">;</span>
+    <span class="number">ch</span>.slot = ngx_process_slot<span class="comment">;</span>
+    <span class="number">ch</span>.fd = ngx_processes[ngx_process_slot]<span class="string">.channel</span>[<span class="number">0</span>]<span class="comment">;</span>
+
+    ngx_pass_open_channel(cycle, &amp;<span class="number">ch</span>)<span class="comment">;</span>
+}
+</code></pre><h3 id="传递新子进程信息给存活的子进程">传递新子进程信息给存活的子进程</h3>
 <blockquote>
-<p>信号处理函数,主要分为两个部分：</p>
-<p>1.MASTER/SINGLE进程的信号处理，接收到某信号后设置对应的全局标志位</p>
-<p>比如收到QUIT信号后，设置ngx_terminate的值为1</p>
-<p>2.WORKER/HELPER进程的信号处理，接收到某信号后设置对应的全局标志位</p>
+<p>进程间消息格式定义ngx_channel_t结构体，其定义</p>
 </blockquote>
-<pre><code>void
-ngx_signal_handler(<span class="built_in">int</span> signo)
+<pre><code>typedef struct {
+    /<span class="keyword">*</span> 对端将接受到的命令 <span class="keyword">*</span>/
+     ngx_uint_t  command;
+     /<span class="keyword">*</span> 进程id <span class="keyword">*</span>/
+     ngx_pid_t   pid;
+     /<span class="keyword">*</span> 在全局ngx_processess数组中的位置 <span class="keyword">*</span>/
+     ngx_int_t   slot;
+     /<span class="keyword">*</span> 传递的fd <span class="keyword">*</span>/
+     ngx_fd_t    fd;
+} ngx_channel_t;
+</code></pre><blockquote>
+<p>父进程调用ngx_pass_open_channel函数遍历ngx_processes进程表找到存活的子进程们并发送消息(ngx_channel_t)给他们</p>
+</blockquote>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
 {
-    <span class="built_in">char</span>            *action;
-    ngx_int_t        ignore;
-    ngx_err_t        err;
-    ngx_signal_t    *<span class="keyword">sig</span>;
+    ngx_int_t  i;
 
-    ignore = <span class="number">0</span>;
+    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ngx_last_process; i++) {
 
-    err = ngx_errno;
-
-    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
-        <span class="keyword">if</span> (<span class="keyword">sig</span>-&gt;signo == signo) {
-            break;
+        <span class="keyword">if</span> (i == ngx_process_slot
+            || ngx_processes[i].pid == -<span class="number">1</span>
+            || ngx_processes[i].channel[<span class="number">0</span>] == -<span class="number">1</span>)
+        {
+            <span class="keyword">continue</span>;
         }
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="comment">/* TODO: NGX_AGAIN */</span>
+        <span class="comment">/* 把ch的信息发给前面的子进程们 */</span>
+        ngx_write_channel(ngx_processes[i].channel[<span class="number">0</span>],
+                          ch, <span class="keyword">sizeof</span>(ngx_channel_t), cycle-&gt;<span class="built_in">log</span>);
     }
-
-    ngx_time_sigsafe_update();
-
-    action = <span class="string">""</span>;
-
-    switch (ngx_process) {
-</code></pre><blockquote>
-<p><strong>master进程的信号处理</strong></p>
+}
+</code></pre><h3 id="存活的子进程接受消息">存活的子进程接受消息</h3>
+<blockquote>
+<p>存活的子进程调用ngx_channel_handle函数（管道可读事件捕捉函数），读取消息并解析成ngx_channel_t，并根据command做相应的处理.</p>
+<p>在ngx_start_work_processes函数中已知ch.command = NGX_CMD_OPEN_CHANNEL;</p>
+<p>存活的子进程收到信息更新自己的ngx_processes进程表，子进程就得到新创建的子进程的信息，子进程间就可以通信。</p>
 </blockquote>
-<pre><code>    <span class="keyword">case</span> NGX_PROCESS_MASTER:
-    <span class="keyword">case</span> NGX_PROCESS_SINGLE:
-        <span class="keyword">switch</span> (signo) {
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
+ngx_channel_handler(ngx_event_t *ev)
+{
+    ngx_int_t          n;
+    ngx_channel_t      ch;
+    ngx_connection_t  *c;
 
-        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
-            <span class="comment">/* 如果接受到quit信号，则准备退出进程。*/</span>
-            ngx_quit = <span class="number">1</span>;
-            action = <span class="string">", shutting down"</span>;
+    <span class="comment">/* 去掉部分代码 */</span>
+    <span class="keyword">for</span> ( ;; ) {
+        n = ngx_read_channel(c-&gt;fd, &amp;ch, <span class="keyword">sizeof</span>(ngx_channel_t), ev-&gt;<span class="built_in">log</span>);
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">switch</span> (ch.command) {
+        <span class="comment">/* 去掉部分代码 */</span>
+        <span class="keyword">case</span> NGX_CMD_OPEN_CHANNEL:
+         <span class="comment">/* 进程更新自己的ngx_processes进程表，记录其他子进程的相关信息 */</span>
+            ngx_processes[ch.slot].pid = ch.pid;
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = ch.fd;
             <span class="keyword">break</span>;
+        <span class="keyword">case</span> NGX_CMD_CLOSE_CHANNEL:
 
-        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
-        <span class="keyword">case</span> SIGINT:
-            <span class="comment">/* 如果接受到quit信号，则准备kill worker进程。*/</span>
-            ngx_terminate = <span class="number">1</span>;
-            action = <span class="string">", exiting"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* winch信号，停止接受accept */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
-            <span class="keyword">if</span> (ngx_daemonized) {
-                ngx_noaccept = <span class="number">1</span>;
-                action = <span class="string">", stop accepting connections"</span>;
+            <span class="keyword">if</span> (close(ngx_processes[ch.slot].channel[<span class="number">0</span>]) == -<span class="number">1</span>) {
+                ngx_log_error(NGX_LOG_ALERT, ev-&gt;<span class="built_in">log</span>, ngx_errno,
+                              <span class="string">"close() channel failed"</span>);
             }
-            <span class="keyword">break</span>;
-        <span class="comment">/* sighup信号用来reconfig */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
-            ngx_reconfigure = <span class="number">1</span>;
-            action = <span class="string">", reconfiguring"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 用户信号 ，重新打开log */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
-            ngx_reopen = <span class="number">1</span>;
-            action = <span class="string">", reopening logs"</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 热代码替换 */</span>
-        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
-            <span class="keyword">if</span> (getppid() &gt; <span class="number">1</span> || ngx_new_binary &gt; <span class="number">0</span>) {
-
-                <span class="comment">/*
-                 * Ignore the signal in the new binary if its parent is
-                 * not the init process, i.e. the old binary's process
-                 * is still running.  Or ignore the signal in the old binary's
-                 * process if the new binary's process is already running.
-                 * 若进程的父进程（old 代码进程是父进程）不是init进程（getppid==1)，忽略此信号。
-                 * 新的代码进程已在运行中（ngx_new_binary &gt; 0)，old代码进程忽略信号，
-                 */</span>
-
-                action = <span class="string">", ignoring"</span>;
-                ignore = <span class="number">1</span>;
-                <span class="keyword">break</span>;
-            }
-            <span class="comment">/* 正常情况下，需要热代码替换。设置标志位 */</span>
-            ngx_change_binary = <span class="number">1</span>;
-            action = <span class="string">", changing binary"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> SIGALRM:
-            ngx_sigalrm = <span class="number">1</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> SIGIO:
-            ngx_sigio = <span class="number">1</span>;
-            <span class="keyword">break</span>;
-        <span class="comment">/* 子进程退出 */</span>
-        <span class="keyword">case</span> SIGCHLD:
-            ngx_reap = <span class="number">1</span>;
+            ngx_processes[ch.slot].channel[<span class="number">0</span>] = -<span class="number">1</span>;
             <span class="keyword">break</span>;
         }
-
-        <span class="keyword">break</span>;
-</code></pre><blockquote>
-<p><strong>worker进程的信号处理</strong></p>
-</blockquote>
-<pre><code>    <span class="comment">/* worker的信号处理 */</span>
-    <span class="keyword">case</span> NGX_PROCESS_WORKER:
-    <span class="keyword">case</span> NGX_PROCESS_HELPER:
-        <span class="keyword">switch</span> (signo) {
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
-            <span class="keyword">if</span> (!ngx_daemonized) {
-                <span class="keyword">break</span>;
-            }
-            ngx_debug_quit = <span class="number">1</span>;
-        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
-            ngx_quit = <span class="number">1</span>;
-            action = <span class="string">", shutting down"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
-        <span class="keyword">case</span> SIGINT:
-            ngx_terminate = <span class="number">1</span>;
-            action = <span class="string">", exiting"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
-            ngx_reopen = <span class="number">1</span>;
-            action = <span class="string">", reopening logs"</span>;
-            <span class="keyword">break</span>;
-
-        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
-        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
-        <span class="keyword">case</span> SIGIO:
-            action = <span class="string">", ignoring"</span>;
-            <span class="keyword">break</span>;
-        }
-
-        <span class="keyword">break</span>;
     }
-
-    ngx_log_error(NGX_LOG_NOTICE, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
-                  <span class="string">"signal %d (%s) received%s"</span>, signo, sig<span class="variable">-&gt;signame</span>, action);
-
-    <span class="keyword">if</span> (ignore) {
-        ngx_log_error(NGX_LOG_CRIT, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
-                      <span class="string">"the changing binary signal is ignored: "</span>
-                      <span class="string">"you should shutdown or terminate "</span>
-                      <span class="string">"before either old or new binary's process"</span>);
-    }
-
-    <span class="comment">/*
-     * 最终如果信号是sigchld，我们收割僵尸进程(用waitpid)
-     */</span>
-    <span class="keyword">if</span> (signo == SIGCHLD) {
-        ngx_process_get_status();
-    }
-
-    ngx_set_errno(err);
 }
 </code></pre>]]></content>
     <summary type="html">
-    <![CDATA[signal nginx]]>
+    <![CDATA[进程间消息传递 nginx]]>
     
     </summary>
     
@@ -1792,154 +1765,6 @@ if (ngx_change_binary) {
   </entry>
   
   <entry>
-    <title><![CDATA[Nginx--进程间的消息传递]]></title>
-    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-ipc/"/>
-    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-ipc/</id>
-    <published>2015-02-05T09:19:52.000Z</published>
-    <updated>2015-01-20T02:54:47.000Z</updated>
-    <content type="html"><![CDATA[<h2 id="进程间的消息传递">进程间的消息传递</h2>
-<blockquote>
-<p>nginx在多进程模型中主要使用socketpair机制来实现进程间的消息传递。<br>ngx_spawn_process函数中初始化socketpair</p>
-</blockquote>
-<pre><code>{
-    <span class="keyword">if</span> (<span class="keyword">socketpair</span>(AF_UNIX, SOCK_STREAM, <span class="number">0</span>, ngx_processes[<span class="keyword">s</span>].channel) == -<span class="number">1</span>)
-    {
-        ngx_log_error(NGX_LOG_ALERT, cycle-&gt;<span class="keyword">log</span>, ngx_errno,
-                      <span class="string">"socketpair() failed while spawning \"<span class="variable">%s</span>\""</span>, name);
-        <span class="keyword">return</span> NGX_INVALID_PID;
-    }
-}
-</code></pre><h2 id="N个worker子进程如何知道彼此信息的？">N个worker子进程如何知道彼此信息的？</h2>
-<blockquote>
-<p>每个进程都维护着一张ngx_processes 是全局的进程表，用来保存存活的子进程信息。</p>
-<p>进程通过ngx_processes获取子进程pid和流管道句柄，实现进程间消息传递</p>
-</blockquote>
-<pre><code><span class="tag">ngx_process_t</span>    <span class="tag">ngx_processes</span><span class="attr_selector">[NGX_MAX_PROCESSES]</span>;
-</code></pre><blockquote>
-<p>ngx_process_t的结构体定义</p>
-</blockquote>
-<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
-    ngx_pid_t           pid;
-    <span class="comment">/* 进程的退出状态(主要在waitpid中进行处理) */</span>
-    <span class="keyword">int</span>                 status;
-    <span class="comment">/* 进程channel(也就是通过socketpair创建的两个句柄) */</span>
-    ngx_socket_t        channel[<span class="number">2</span>];
-
-    <span class="comment">/* 进程的执行函数（也就是每次spawn，子进程所要执行的那个函数). */</span>
-    ngx_spawn_proc_pt   proc;
-    <span class="keyword">void</span>               *data;
-    <span class="keyword">char</span>               *name;
-
-    <span class="comment">/* 进程的几个状态 */</span>
-    <span class="keyword">unsigned</span>            respawn:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            just_spawn:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            detached:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            exiting:<span class="number">1</span>;
-    <span class="keyword">unsigned</span>            exited:<span class="number">1</span>;
-} ngx_process_t;
-</code></pre><h3 id="父进程创建子进程">父进程创建子进程</h3>
-<blockquote>
-<p>父进程调用ngx_start_work_processes函数中，并循环调用ngx_spawn_process函数生成N个worker的子进程,更新ngx_processes进程表</p>
-</blockquote>
-<pre><code><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; n; i++) {
-    ngx_spawn_process(cycle, ngx_worker_process_cycle, 
-            (<span class="keyword">void</span> *) (intptr_t) i, <span class="string">"worker process"</span>, <span class="class"><span class="keyword">type</span>);</span>
-}
-</code></pre><blockquote>
-<p>父进程每调用一次ngx_spawn_process函数后，将新fork的子进程pid和流管道的句柄channel[0]复制给ch变量(ngx_channel_t)，</p>
-<p>然后调用ngx_pass_open_channel函数把ch消息传递给之前创建的子进程。</p>
-</blockquote>
-<pre><code>{
-    <span class="number">ch</span>.command = NGX_CMD_OPEN_CHANNEL<span class="comment">;</span>
-    <span class="number">ch</span>.pid = ngx_processes[ngx_process_slot]<span class="string">.pid</span><span class="comment">;</span>
-    <span class="number">ch</span>.slot = ngx_process_slot<span class="comment">;</span>
-    <span class="number">ch</span>.fd = ngx_processes[ngx_process_slot]<span class="string">.channel</span>[<span class="number">0</span>]<span class="comment">;</span>
-
-    ngx_pass_open_channel(cycle, &amp;<span class="number">ch</span>)<span class="comment">;</span>
-}
-</code></pre><h3 id="传递新子进程信息给存活的子进程">传递新子进程信息给存活的子进程</h3>
-<blockquote>
-<p>进程间消息格式定义ngx_channel_t结构体，其定义</p>
-</blockquote>
-<pre><code>typedef struct {
-    /<span class="keyword">*</span> 对端将接受到的命令 <span class="keyword">*</span>/
-     ngx_uint_t  command;
-     /<span class="keyword">*</span> 进程id <span class="keyword">*</span>/
-     ngx_pid_t   pid;
-     /<span class="keyword">*</span> 在全局ngx_processess数组中的位置 <span class="keyword">*</span>/
-     ngx_int_t   slot;
-     /<span class="keyword">*</span> 传递的fd <span class="keyword">*</span>/
-     ngx_fd_t    fd;
-} ngx_channel_t;
-</code></pre><blockquote>
-<p>父进程调用ngx_pass_open_channel函数遍历ngx_processes进程表找到存活的子进程们并发送消息(ngx_channel_t)给他们</p>
-</blockquote>
-<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
-ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
-{
-    ngx_int_t  i;
-
-    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; ngx_last_process; i++) {
-
-        <span class="keyword">if</span> (i == ngx_process_slot
-            || ngx_processes[i].pid == -<span class="number">1</span>
-            || ngx_processes[i].channel[<span class="number">0</span>] == -<span class="number">1</span>)
-        {
-            <span class="keyword">continue</span>;
-        }
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="comment">/* TODO: NGX_AGAIN */</span>
-        <span class="comment">/* 把ch的信息发给前面的子进程们 */</span>
-        ngx_write_channel(ngx_processes[i].channel[<span class="number">0</span>],
-                          ch, <span class="keyword">sizeof</span>(ngx_channel_t), cycle-&gt;<span class="built_in">log</span>);
-    }
-}
-</code></pre><h3 id="存活的子进程接受消息">存活的子进程接受消息</h3>
-<blockquote>
-<p>存活的子进程调用ngx_channel_handle函数（管道可读事件捕捉函数），读取消息并解析成ngx_channel_t，并根据command做相应的处理.</p>
-<p>在ngx_start_work_processes函数中已知ch.command = NGX_CMD_OPEN_CHANNEL;</p>
-<p>存活的子进程收到信息更新自己的ngx_processes进程表，子进程就得到新创建的子进程的信息，子进程间就可以通信。</p>
-</blockquote>
-<pre><code><span class="keyword">static</span> <span class="keyword">void</span>
-ngx_channel_handler(ngx_event_t *ev)
-{
-    ngx_int_t          n;
-    ngx_channel_t      ch;
-    ngx_connection_t  *c;
-
-    <span class="comment">/* 去掉部分代码 */</span>
-    <span class="keyword">for</span> ( ;; ) {
-        n = ngx_read_channel(c-&gt;fd, &amp;ch, <span class="keyword">sizeof</span>(ngx_channel_t), ev-&gt;<span class="built_in">log</span>);
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="keyword">switch</span> (ch.command) {
-        <span class="comment">/* 去掉部分代码 */</span>
-        <span class="keyword">case</span> NGX_CMD_OPEN_CHANNEL:
-         <span class="comment">/* 进程更新自己的ngx_processes进程表，记录其他子进程的相关信息 */</span>
-            ngx_processes[ch.slot].pid = ch.pid;
-            ngx_processes[ch.slot].channel[<span class="number">0</span>] = ch.fd;
-            <span class="keyword">break</span>;
-        <span class="keyword">case</span> NGX_CMD_CLOSE_CHANNEL:
-
-            <span class="keyword">if</span> (close(ngx_processes[ch.slot].channel[<span class="number">0</span>]) == -<span class="number">1</span>) {
-                ngx_log_error(NGX_LOG_ALERT, ev-&gt;<span class="built_in">log</span>, ngx_errno,
-                              <span class="string">"close() channel failed"</span>);
-            }
-            ngx_processes[ch.slot].channel[<span class="number">0</span>] = -<span class="number">1</span>;
-            <span class="keyword">break</span>;
-        }
-    }
-}
-</code></pre>]]></content>
-    <summary type="html">
-    <![CDATA[进程间消息传递 nginx]]>
-    
-    </summary>
-    
-      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
-    
-  </entry>
-  
-  <entry>
     <title><![CDATA[Libeio--libeio初始化，REQ/RES队列，锁，线程]]></title>
     <link href="http://don7hao.github.com/2015/02/05/libeio/2015-01-12-libeio_data/"/>
     <id>http://don7hao.github.com/2015/02/05/libeio/2015-01-12-libeio_data/</id>
@@ -2214,6 +2039,267 @@ etp_worker_free (etp_worker *wrk)
     </summary>
     
       <category term="Libeio" scheme="http://don7hao.github.com/categories/Libeio/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Nginx--信号]]></title>
+    <link href="http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/"/>
+    <id>http://don7hao.github.com/2015/02/05/nginx/2015-01-04-nginx-init-signal/</id>
+    <published>2015-02-05T09:19:52.000Z</published>
+    <updated>2015-01-20T02:54:47.000Z</updated>
+    <content type="html"><![CDATA[<h2 id="信号的初始化">信号的初始化</h2>
+<blockquote>
+<p>nginx启动的时候会调用ngx_init_signals函数遍历signals中的信号并进行信号处理函数注册</p>
+</blockquote>
+<h2 id="signals结构体">signals结构体</h2>
+<blockquote>
+<p>ngx_signal_t结构体</p>
+</blockquote>
+<pre><code><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    <span class="keyword">int</span>     signo;
+    <span class="built_in">char</span>   *signame;
+    <span class="built_in">char</span>   *name;
+    <span class="keyword">void</span>  (*handler)(<span class="keyword">int</span> signo);
+} ngx_signal_t;
+</code></pre><h2 id="signals初始化">signals初始化</h2>
+<blockquote>
+<p>主要包含nginx需要处理的信号量和对应的信号处理函数（ngx_signal_handler或者SIG_IGN)</p>
+</blockquote>
+<pre><code>ngx_signal_t  signals[] = {
+    { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_RECONFIGURE_SIGNAL),
+      <span class="string">"reload"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_REOPEN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_REOPEN_SIGNAL),
+      <span class="string">"reopen"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_NOACCEPT_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_NOACCEPT_SIGNAL),
+      <span class="string">""</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_TERMINATE_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_TERMINATE_SIGNAL),
+      <span class="string">"stop"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_SHUTDOWN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_SHUTDOWN_SIGNAL),
+      <span class="string">"quit"</span>,
+      ngx_signal_handler },
+
+    { ngx_signal_value(NGX_CHANGEBIN_SIGNAL),
+      <span class="string">"SIG"</span> ngx_value(NGX_CHANGEBIN_SIGNAL),
+      <span class="string">""</span>,
+      ngx_signal_handler },
+
+    { SIGALRM, <span class="string">"SIGALRM"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGINT, <span class="string">"SIGINT"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGIO, <span class="string">"SIGIO"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGCHLD, <span class="string">"SIGCHLD"</span>, <span class="string">""</span>, ngx_signal_handler },
+
+    { SIGSYS, <span class="string">"SIGSYS, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
+
+    { SIGPIPE, <span class="string">"SIGPIPE, SIG_IGN"</span>, <span class="string">""</span>, SIG_IGN },
+
+    { <span class="number">0</span>, <span class="keyword">NULL</span>, <span class="string">""</span>, <span class="keyword">NULL</span> }
+};
+</code></pre><h2 id="ngx_init_signals">ngx_init_signals</h2>
+<blockquote>
+<p>信号初始化，遍历signals,注册信号处理函数</p>
+</blockquote>
+<pre><code>ngx_int_t
+ngx_init_signals(ngx_log_t *log)
+{
+    ngx_signal_t      *<span class="keyword">sig</span>;
+    <span class="keyword">struct</span> sigaction   sa;
+
+    <span class="comment">/* 遍历signals,注册信号处理函数 */</span>
+    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
+        ngx_memzero(&amp;sa, sizeof(<span class="keyword">struct</span> sigaction));
+        sa.sa_handler = <span class="keyword">sig</span>-&gt;handler;
+        sigemptyset(&amp;sa.sa_mask);
+        <span class="keyword">if</span> (sigaction(<span class="keyword">sig</span>-&gt;signo, &amp;sa, NULL) == -<span class="number">1</span>) {
+            <span class="comment">/* ...... */</span>
+        }
+    }
+
+    return NGX_OK;
+}
+</code></pre><h2 id="ngx_signal_handler">ngx_signal_handler</h2>
+<blockquote>
+<p>信号处理函数,主要分为两个部分：</p>
+<p>1.MASTER/SINGLE进程的信号处理，接收到某信号后设置对应的全局标志位</p>
+<p>比如收到QUIT信号后，设置ngx_terminate的值为1</p>
+<p>2.WORKER/HELPER进程的信号处理，接收到某信号后设置对应的全局标志位</p>
+</blockquote>
+<pre><code>void
+ngx_signal_handler(<span class="built_in">int</span> signo)
+{
+    <span class="built_in">char</span>            *action;
+    ngx_int_t        ignore;
+    ngx_err_t        err;
+    ngx_signal_t    *<span class="keyword">sig</span>;
+
+    ignore = <span class="number">0</span>;
+
+    err = ngx_errno;
+
+    <span class="keyword">for</span> (<span class="keyword">sig</span> = signals; <span class="keyword">sig</span>-&gt;signo != <span class="number">0</span>; <span class="keyword">sig</span>++) {
+        <span class="keyword">if</span> (<span class="keyword">sig</span>-&gt;signo == signo) {
+            break;
+        }
+    }
+
+    ngx_time_sigsafe_update();
+
+    action = <span class="string">""</span>;
+
+    switch (ngx_process) {
+</code></pre><blockquote>
+<p><strong>master进程的信号处理</strong></p>
+</blockquote>
+<pre><code>    <span class="keyword">case</span> NGX_PROCESS_MASTER:
+    <span class="keyword">case</span> NGX_PROCESS_SINGLE:
+        <span class="keyword">switch</span> (signo) {
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
+            <span class="comment">/* 如果接受到quit信号，则准备退出进程。*/</span>
+            ngx_quit = <span class="number">1</span>;
+            action = <span class="string">", shutting down"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
+        <span class="keyword">case</span> SIGINT:
+            <span class="comment">/* 如果接受到quit信号，则准备kill worker进程。*/</span>
+            ngx_terminate = <span class="number">1</span>;
+            action = <span class="string">", exiting"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* winch信号，停止接受accept */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
+            <span class="keyword">if</span> (ngx_daemonized) {
+                ngx_noaccept = <span class="number">1</span>;
+                action = <span class="string">", stop accepting connections"</span>;
+            }
+            <span class="keyword">break</span>;
+        <span class="comment">/* sighup信号用来reconfig */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
+            ngx_reconfigure = <span class="number">1</span>;
+            action = <span class="string">", reconfiguring"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 用户信号 ，重新打开log */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
+            ngx_reopen = <span class="number">1</span>;
+            action = <span class="string">", reopening logs"</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 热代码替换 */</span>
+        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
+            <span class="keyword">if</span> (getppid() &gt; <span class="number">1</span> || ngx_new_binary &gt; <span class="number">0</span>) {
+
+                <span class="comment">/*
+                 * Ignore the signal in the new binary if its parent is
+                 * not the init process, i.e. the old binary's process
+                 * is still running.  Or ignore the signal in the old binary's
+                 * process if the new binary's process is already running.
+                 * 若进程的父进程（old 代码进程是父进程）不是init进程（getppid==1)，忽略此信号。
+                 * 新的代码进程已在运行中（ngx_new_binary &gt; 0)，old代码进程忽略信号，
+                 */</span>
+
+                action = <span class="string">", ignoring"</span>;
+                ignore = <span class="number">1</span>;
+                <span class="keyword">break</span>;
+            }
+            <span class="comment">/* 正常情况下，需要热代码替换。设置标志位 */</span>
+            ngx_change_binary = <span class="number">1</span>;
+            action = <span class="string">", changing binary"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> SIGALRM:
+            ngx_sigalrm = <span class="number">1</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> SIGIO:
+            ngx_sigio = <span class="number">1</span>;
+            <span class="keyword">break</span>;
+        <span class="comment">/* 子进程退出 */</span>
+        <span class="keyword">case</span> SIGCHLD:
+            ngx_reap = <span class="number">1</span>;
+            <span class="keyword">break</span>;
+        }
+
+        <span class="keyword">break</span>;
+</code></pre><blockquote>
+<p><strong>worker进程的信号处理</strong></p>
+</blockquote>
+<pre><code>    <span class="comment">/* worker的信号处理 */</span>
+    <span class="keyword">case</span> NGX_PROCESS_WORKER:
+    <span class="keyword">case</span> NGX_PROCESS_HELPER:
+        <span class="keyword">switch</span> (signo) {
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_NOACCEPT_SIGNAL):
+            <span class="keyword">if</span> (!ngx_daemonized) {
+                <span class="keyword">break</span>;
+            }
+            ngx_debug_quit = <span class="number">1</span>;
+        <span class="keyword">case</span> ngx_signal_value(NGX_SHUTDOWN_SIGNAL):
+            ngx_quit = <span class="number">1</span>;
+            action = <span class="string">", shutting down"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_TERMINATE_SIGNAL):
+        <span class="keyword">case</span> SIGINT:
+            ngx_terminate = <span class="number">1</span>;
+            action = <span class="string">", exiting"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_REOPEN_SIGNAL):
+            ngx_reopen = <span class="number">1</span>;
+            action = <span class="string">", reopening logs"</span>;
+            <span class="keyword">break</span>;
+
+        <span class="keyword">case</span> ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
+        <span class="keyword">case</span> ngx_signal_value(NGX_CHANGEBIN_SIGNAL):
+        <span class="keyword">case</span> SIGIO:
+            action = <span class="string">", ignoring"</span>;
+            <span class="keyword">break</span>;
+        }
+
+        <span class="keyword">break</span>;
+    }
+
+    ngx_log_error(NGX_LOG_NOTICE, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
+                  <span class="string">"signal %d (%s) received%s"</span>, signo, sig<span class="variable">-&gt;signame</span>, action);
+
+    <span class="keyword">if</span> (ignore) {
+        ngx_log_error(NGX_LOG_CRIT, ngx_cycle<span class="variable">-&gt;log</span>, <span class="number">0</span>,
+                      <span class="string">"the changing binary signal is ignored: "</span>
+                      <span class="string">"you should shutdown or terminate "</span>
+                      <span class="string">"before either old or new binary's process"</span>);
+    }
+
+    <span class="comment">/*
+     * 最终如果信号是sigchld，我们收割僵尸进程(用waitpid)
+     */</span>
+    <span class="keyword">if</span> (signo == SIGCHLD) {
+        ngx_process_get_status();
+    }
+
+    ngx_set_errno(err);
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[signal nginx]]>
+    
+    </summary>
+    
+      <category term="Nginx" scheme="http://don7hao.github.com/categories/Nginx/"/>
     
   </entry>
   
@@ -2932,90 +3018,6 @@ struct hlist_node </span>{
     </summary>
     
       <category term="kernel" scheme="http://don7hao.github.com/categories/kernel/"/>
-    
-  </entry>
-  
-  <entry>
-    <title><![CDATA[Quick Sort]]></title>
-    <link href="http://don7hao.github.com/2015/01/29/algorithm/quicksort/"/>
-    <id>http://don7hao.github.com/2015/01/29/algorithm/quicksort/</id>
-    <published>2015-01-29T08:45:07.000Z</published>
-    <updated>2015-02-02T03:32:32.000Z</updated>
-    <content type="html"><![CDATA[<h1 id="QuickSort">QuickSort</h1>
-<p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p>
-<p>2.重新排序數列，所有元素比基准值小的放在基准前面，所有元素比值基准大的放在基准的後面（相同的數可以到任一边）。<br>在这个分割结束之后，該基准就位于数列的中间位置。</p>
-<p>3.递归地（recursive）把小于基准的元素子队列和大于基准的元素的子队列排序。</p>
-<p>在平均狀況下，排序n個項目要Ο(n$\log{n}$)次比較。在最坏情况下需要Ο($n^2$)次比較。<br>事实上，快速排序通常明显比其他Ο(n$\log{n}$)算法更快，因為它的內部循环（inner<br>loop）可以在大部分的架构上很有效率地被实现出來。</p>
-<p>代码 1：</p>
-<pre><code>void quick_sort(char <span class="built_in">array</span>[], <span class="built_in">int</span> <span class="built_in">left</span>, <span class="built_in">int</span> <span class="built_in">right</span>)
-{
-
-    <span class="built_in">int</span> i, j;
-    char pivot;
-
-    <span class="keyword">if</span> (<span class="built_in">left</span> &lt; <span class="built_in">right</span>){
-        i = <span class="built_in">left</span>, j = <span class="built_in">right</span>+<span class="number">1</span>;
-        pivot = <span class="built_in">array</span>[<span class="built_in">left</span>];
-        <span class="keyword">while</span> (i &lt; j){
-            <span class="keyword">while</span> (pivot &gt; <span class="built_in">array</span>[++i]){
-            }
-
-            <span class="keyword">while</span> (pivot &lt; <span class="built_in">array</span>[--j]){
-            }
-
-            <span class="keyword">if</span> (i &lt; j){
-                swap(&amp;<span class="built_in">array</span>[i], &amp;<span class="built_in">array</span>[j]);
-            }
-        }
-
-        swap(&amp;<span class="built_in">array</span>[<span class="built_in">left</span>], &amp;<span class="built_in">array</span>[j]);
-        quick_sort(<span class="built_in">array</span>, <span class="built_in">left</span>, j-<span class="number">1</span>);
-        quick_sort(<span class="built_in">array</span>, j+<span class="number">1</span>, <span class="built_in">right</span>);
-    }
-    return;
-}
-</code></pre><h2 id="快速排序的最坏情况">快速排序的最坏情况</h2>
-<p>在最壞狀況下則需要Ο($n^2$)比较。<br>最坏情况是每次划分选取的基准都是当前无序区中关键字最小(或最大)的记录，划分的结果是基准左边的子区间为空(或右边的子区间为空)，而划分所得的另一个非空的子区间中记录数目，仅仅比划分前的无序区中记录个数减少一个。<br>因此，快速排序必须做n-1次划分，第i次划分开始时区间长度为n-i+1，所需的比较次数为n-i(1≤i≤n-1)，故总的比较次数达到最大值：</p>
-<blockquote>
-<p>Cmax = n(n-1)/2=O($n^2$)</p>
-</blockquote>
-<p>如果按上面给出的划分算法，每次取当前无序区的第1个记录为基准，那么当文件的记录已按递增序(或递减序)排列时，每次划分所取的基准就是当前无序区中关键字最小(或最大)的记录，则快速排序所需的比较次数反而最多。<br>基准的选择影响了算法的性能。</p>
-<h2 id="基准的选择">基准的选择</h2>
-<p>在当前无序区中选取划分的基准关键字是决定算法性能的关键。</p>
-<h3 id="三者取中规则">三者取中规则</h3>
-<p>在当前区间里，将该区间首、尾和中间位置上的关键字比较，取三者之中值所对应的记录作为基准，在划分开始前将该基准记录和该区伺的第1个记录进行交换，此后的划分过程与上面所给的quick_sort算法完全相同。</p>
-<p>代码：</p>
-<pre><code>char <span class="type">Median3</span>(char <span class="type">A</span>[], int <span class="keyword">left</span>, int <span class="keyword">right</span> )
-{
-    int center = (<span class="keyword">left</span> + <span class="keyword">right</span>) / <span class="number">2</span>;
-    <span class="keyword">if</span> ( <span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[center])
-        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[center]);
-    <span class="keyword">if</span> (<span class="type">A</span>[<span class="keyword">left</span>] &gt; <span class="type">A</span>[<span class="keyword">right</span>])
-        <span class="built_in">swap</span>( &amp;<span class="type">A</span>[<span class="keyword">left</span>], &amp;<span class="type">A</span>[<span class="keyword">right</span>]);
-    <span class="keyword">if</span> ( <span class="type">A</span>[center] &gt; <span class="type">A</span>[<span class="keyword">right</span>] )
-        <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">right</span>] );
-    <span class="comment">/* A[left] &lt;= A[center] &lt;= A[right] */</span>
-    <span class="built_in">swap</span>(&amp;<span class="type">A</span>[center], &amp;<span class="type">A</span>[<span class="keyword">left</span>]); <span class="comment">/* 将pivot藏到右边 */</span>
-    <span class="keyword">return</span> <span class="type">A</span>[<span class="keyword">left</span>]; <span class="comment">/* 返回 pivot */</span>
-}
-</code></pre><h3 id="取随机数k(left≤k≤right)作为基准">取随机数k(left≤k≤right)作为基准</h3>
-<p>选取基准最好的方法是用一个随机函数产生一个取位于left和right之间的随机数k(left≤k≤right)，用R[k]作为基准，这相当于强迫R[left..right]中的记录是随机分布的。用此方法所得到的快速排序一般称为随机的快速排序。</p>
-<p>代码：</p>
-<pre><code><span class="type">int</span> get_random(<span class="type">char</span> A[], <span class="type">int</span> left,<span class="type">int</span> right)
-{
-    // 产生 left 和 right 之间的一个随机整数
-    <span class="type">int</span> <span class="literal">result</span> = left + rand()%(right - left + <span class="number">1</span>);
-    swap(&amp;A[<span class="literal">result</span>], &amp;A[left]); /* 将pivot藏到左边 */
-    <span class="keyword">return</span> A[left]; /* 返回 pivot */
-}
-</code></pre><p>完整代码：<br><a href="https://github.com/don7hao/algorithm/blob/master/sort/quick_sort.c" target="_blank" rel="external">https://github.com/don7hao/algorithm/blob/master/sort/quick_sort.c</a></p>
-]]></content>
-    <summary type="html">
-    <![CDATA[<h1 id="QuickSort">QuickSort</h1>
-<p>快速排序使用分治法（Divide and conquer）策略來把一個序列（list）分为两个子序列（sub-lists）。<br>步骤：<br>1.从队列中挑出一个元素，称为“基准”（pivot）。</p]]>
-    </summary>
-    
-      <category term="algorithm" scheme="http://don7hao.github.com/categories/algorithm/"/>
     
   </entry>
   

@@ -4,19 +4,24 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>进程虚拟地址空间 | don7hao&#39;s blog</title>
+    <title>内核堆栈切换 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="mm_struct
-在进程的task_struct结构中包含一个指向mm_struct结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，当虚拟区块多时采用“红黑树（r">
+    <meta name="description" content="环境
+CPU ： x86 32bit内核版本：2.6.18
+进程切换
+为了控制进程的执行，内核必须有能力挂起正在CPU上执行的进程，并恢复以前挂起的某个进程的执行，这叫做进程切换，任务切换，上下文切换
+
+
+schedule()——&amp;gt;context_switch()——&amp;gt;switch_to">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="进程虚拟地址空间 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="内核堆栈切换 | don7hao&#39;s blog" />
       
     
     
@@ -65,13 +70,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-28T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url" class="article-time">1月 28 2015</a>
+    <time datetime="2015-04-07T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/04/07/kernel/stack_of_kernel_switch/" title="内核堆栈切换" itemprop="url" class="article-time">4月 7 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/28/kernel/mm_struct/" title="进程虚拟地址空间" itemprop="url"><span>进程虚拟地址空间</span></a>
+      <a href="/2015/04/07/kernel/stack_of_kernel_switch/" title="内核堆栈切换" itemprop="url"><span>内核堆栈切换</span></a>
   </h1>
 </header>
 
@@ -81,57 +86,79 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#mm_struct"><span class="toc-number">1.</span> <span class="toc-text">mm_struct</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#虚拟地址空间分布"><span class="toc-number">1.1.</span> <span class="toc-text">虚拟地址空间分布</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#VMA—虚拟内存区块"><span class="toc-number">1.2.</span> <span class="toc-text">VMA—虚拟内存区块</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_area_struct"><span class="toc-number">1.2.1.</span> <span class="toc-text">vm_area_struct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#vm_operations_struct"><span class="toc-number">1.2.2.</span> <span class="toc-text">vm_operations_struct</span></a></li></ol></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#环境"><span class="toc-number">1.</span> <span class="toc-text">环境</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#进程切换"><span class="toc-number">2.</span> <span class="toc-text">进程切换</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#thread_struct"><span class="toc-number">3.</span> <span class="toc-text">thread_struct</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#内核堆栈切换"><span class="toc-number">4.</span> <span class="toc-text">内核堆栈切换</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="mm_struct">mm_struct</h1>
-<p>在进程的task_struct结构中包含一个指向mm_struct<br>结构的指针，mm_strcut用来描述一个进程的虚拟地址空间。<br>进程的虚拟空间中可能有多个虚拟区块，对这些虚拟区块的组织方式有两种，当虚拟区较少时采用单链表，由mmap指针指向这个链表，<br>当虚拟区块多时采用“红黑树（red_black tree）”结构。</p>
-<h2 id="虚拟地址空间分布">虚拟地址空间分布</h2>
-<p>主要包括栈,映射空间,堆,bss,数据段,代码段。</p>
-<p>[mmap]是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。<br>[start_code,　end_code]表示代码段的地址空间范围。<br>[start_data,　end_start]表示数据段的地址空间范围。<br>[start_brk,　brk]分别表示heap段的起始空间和当前的heap指针(brk)。<br>[start_stack,　end_stack]表示stack段的地址空间范围<br>[mmap_base]表示memory mapping的起始地址。</p>
-<p>kernel linux2.6.18</p>
-<pre><code><span class="keyword">struct</span> mm_struct {
-    ......
-    <span class="keyword">struct</span> vm_area_struct * mmap;        <span class="comment">/* list of VMAs */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> mmap_base;        <span class="comment">/* base of mmap area */</span>
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_code, end_code, start_data, end_data;
-    <span class="keyword">unsigned</span> <span class="keyword">long</span> start_brk, brk, start_stack;
-    ......
+		<h1 id="环境">环境</h1>
+<p>CPU ： x86 32bit<br>内核版本：2.6.18</p>
+<h1 id="进程切换">进程切换</h1>
+<p>为了控制进程的执行，内核必须有能力挂起正在CPU上执行的进程，并恢复以前挂起的某个进程的执行，这叫做进程切换，任务切换，上下文切换</p>
+<blockquote>
+<blockquote>
+<p>schedule()——&gt;context_switch()——&gt;switch_to()——&gt;__switch_to()</p>
+</blockquote>
+</blockquote>
+<p>schedule是主调度函数，当schedule()需要暂停A进程的执行而继续B进程的执行时，就发生了进程之间的切换。<br>进程切换主要有两部分：<br>1、切换全局页表项(这个切换工作由context_switch()完成；<br>2、切换内核堆栈和硬件上下文(__switch_to()主要完成硬件上下文切换，switch_to主要完成内核堆栈切换)。</p>
+<h1 id="thread_struct">thread_struct</h1>
+<p>1.一个进程的硬件上下文主要保存在thread_struct中<br>2.其他信息放在内核态堆栈中</p>
+<pre><code><span class="keyword">struct</span> thread_struct {
+    <span class="comment">/* cached TLS descriptors. */</span>
+        <span class="keyword">struct</span> desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    esp0;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    sysenter_cs;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    eip;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    esp;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    fs;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    gs;
+    <span class="comment">/* Hardware debugging registers */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    debugreg[<span class="number">8</span>];  <span class="comment">/* %%db0-7 debug registers */</span>
+    <span class="comment">/* fault info */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    cr2, trap_no, error_code;
+    <span class="comment">/* floating point info */</span>
+        <span class="keyword">union</span> i387_union    i387;
+    <span class="comment">/* virtual 86 mode info */</span>
+        <span class="keyword">struct</span> vm86_struct __user * vm86_info;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>        screen_bitmap;
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>        v86flags, v86mask, saved_esp0;
+        <span class="keyword">unsigned</span> <span class="keyword">int</span>        saved_fs, saved_gs;
+    <span class="comment">/* IO permissions */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    *io_bitmap_ptr;
+         <span class="keyword">unsigned</span> <span class="keyword">long</span>    iopl;
+    <span class="comment">/* max allowed port in the bitmap, in bytes: */</span>
+        <span class="keyword">unsigned</span> <span class="keyword">long</span>    io_bitmap_max;
 };
-</code></pre><p><img src="/img/mm_struct_1.png" alt="mm_struct_1" width="800" height="400"> </p>
-
-<h2 id="VMA—虚拟内存区块">VMA—虚拟内存区块</h2>
-<p>每一个VMA是虚拟地址都是连续分布不会重叠，是虚拟地址空间的一部分。<br>进程的虚拟内存空间中可以有多个虚拟内存区块(比如共享库,数据段,代码段,stack, heap等)。见图mm_struct_2</p>
-<h3 id="vm_area_struct">vm_area_struct</h3>
-<p>vm_area_struct用来描述WMA，包括它的起始地址，结束地址，访问权限和行为等。<br>mmap是一个链表，每个节点指向进程的一个虚拟内存区块(VMA)。</p>
-<pre><code>struct vm_area_struct <span class="keyword">*</span> mmap;        /<span class="keyword">*</span> list of VMAs <span class="keyword">*</span>/
-</code></pre><p>每个vm_area_struct存储着一个虚拟地址区块</p>
-<pre><code>struct vm_area_struct {
-    struct mm_struct <span class="keyword">*</span> vm_mm;    /<span class="keyword">*</span> 虚拟地址所在的地址空间 <span class="keyword">*</span>/
-    unsigned long vm_start;        /<span class="keyword">*</span> 在vm_mm中的起始地址　<span class="keyword">*</span>/
-    unsigned long vm_end;        /<span class="keyword">*</span> 在vm_mm中的结束地址　<span class="keyword">*</span>/
-
-    /<span class="keyword">*</span> linked list of VM areas per task, sorted by address <span class="keyword">*</span>/
-    struct vm_area_struct <span class="keyword">*</span>vm_next;　/<span class="keyword">*</span> 指向下一个 vm_area_struct <span class="keyword">*</span>/
-
-    pgprot_t vm_page_prot;        /<span class="keyword">*</span> Access permissions of this VMA. <span class="keyword">*</span>/
-    unsigned long vm_flags;        /<span class="keyword">*</span> Flags, listed below. <span class="keyword">*</span>/
-    struct vm_operations_struct <span class="keyword">*</span> vm_ops;
-    .....
-}
-</code></pre><p><img src="/img/mm_struct_2.png" alt="mm_struct_２" width="800" height="400"> </p>
-
-<h3 id="vm_operations_struct">vm_operations_struct</h3>
-<p>vm_area_struct中的vm_operations_struct结构描述操作虚拟内存区块的函数集。<br>比如，open、close 分别用于虚拟区块的打开、关闭，<br>而nopage 用于当虚存页面不在物理内存而引起的“缺页异常”时所应该调用的函数，<br>当 Linux 处理这一缺页异常时（请页机制），就可以为新的虚拟内存区分配实际的物理内存。</p>
-<pre><code><span class="keyword">struct</span> vm_operations_struct {
-    <span class="keyword">void</span> (*open)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">void</span> (*close)(<span class="keyword">struct</span> vm_area_struct * area);
-    <span class="keyword">struct</span> page * (*nopage)(<span class="keyword">struct</span> vm_area_struct * area, <span class="keyword">unsigned</span> <span class="keyword">long</span> address, <span class="keyword">int</span> *type);
-    ......
-};
-</code></pre><p><img src="/img/mm_struct_3.png" alt="mm_struct_3" width="800" height="400"> </p>
-  
+</code></pre><h1 id="内核堆栈切换">内核堆栈切换</h1>
+<p>switch_to利用了prev,next,last三个参数：<br>prev：指向当前进程<br>next：指向被调度的进程<br>last  : 指向当前进程</p>
+<pre><code><span class="variable">#define</span> switch_to(prev,next,last) <span class="keyword">do</span> {                    <span class="subst">\</span>
+    unsigned long esi,edi;                        <span class="subst">\</span>
+    <span class="comment">//下面两步把EFLAGS和EBP入栈保存现场。</span>
+    asm volatile(<span class="string">"pushfl\n\t"</span>        <span class="comment">/* Save flags */</span>    <span class="subst">\</span>
+         <span class="string">"pushl %%ebp\n\t"</span>                    <span class="subst">\</span>
+    <span class="comment">//把ESP的值保存到prev-&gt;thread.esp，保存当前进程上下文</span>
+         <span class="string">"movl %%esp,%0\n\t"</span>    <span class="comment">/* save ESP */</span>        <span class="subst">\</span> 
+    <span class="comment">//把next-&gt;thread.esp值赋值给ESP，堆栈被切换进入到next进程</span>
+         <span class="string">"movl %5,%%esp\n\t"</span>    <span class="comment">/* restore ESP */</span>    <span class="subst">\</span>
+    <span class="comment">//“$1f”指向lable 1</span>
+    <span class="comment">//在prev进程的上下文设置返回地址，返回到下面标号为1处</span>
+    <span class="comment">//一个进程被正常切换出时，保存的eip总是标号为1的那个位置</span>
+    <span class="comment">//把label 1的地址赋值给prev-&gt;thread.eip</span>
+         <span class="string">"movl $1f,%1\n\t"</span>        <span class="comment">/* save EIP */</span>        <span class="subst">\</span>
+    <span class="comment">//把next-&gt;thread.eip的值入栈</span>
+    <span class="comment">//从next进程的上下文中取得该进程的返回地址，放入堆栈中</span>
+         <span class="string">"pushl %6\n\t"</span>        <span class="comment">/* restore EIP */</span>    <span class="subst">\</span>
+    <span class="comment">//调用__switch_to进行硬件上下文切换</span>
+         <span class="string">"jmp __switch_to\n"</span>                <span class="subst">\</span>
+    <span class="comment">//当这个进程再次被调度运行时，恢复在堆栈上的返回地址总是这个1。</span>
+         <span class="string">"1:\t"</span>                        <span class="subst">\</span>
+         <span class="string">"popl %%ebp\n\t"</span>                    <span class="subst">\</span>
+         <span class="string">"popfl"</span>                        <span class="subst">\</span>
+         :<span class="string">"=m"</span> (prev<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>esp),<span class="string">"=m"</span> (prev<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>eip),    <span class="subst">\</span>
+          <span class="string">"=a"</span> (last),<span class="string">"=S"</span> (esi),<span class="string">"=D"</span> (edi)            <span class="subst">\</span>
+         :<span class="string">"m"</span> (next<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>esp),<span class="string">"m"</span> (next<span class="subst">-&gt;</span><span class="keyword">thread</span><span class="built_in">.</span>eip),    <span class="subst">\</span>
+          <span class="string">"2"</span> (prev), <span class="string">"d"</span> (next));                <span class="subst">\</span>
+} <span class="keyword">while</span> (<span class="number">0</span>)
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
@@ -146,7 +173,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/28/kernel/mm_struct/" data-title="进程虚拟地址空间 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/04/07/kernel/stack_of_kernel_switch/" data-title="内核堆栈切换 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -155,19 +182,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/28/algorithm/redblack/" title="红黑树">
-  <strong>上一篇：</strong><br/>
-  <span>
-  红黑树</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/21/libev/libev-watcher/"  title="libev-signal watcher">
+<a href="/2015/03/02/programming/stack_backstrace/"  title="Stack Backstrace">
  <strong>下一篇：</strong><br/> 
- <span>libev-signal watcher
+ <span>Stack Backstrace
 </span>
 </a>
 </div>
