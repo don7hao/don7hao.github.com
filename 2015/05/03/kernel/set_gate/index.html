@@ -4,27 +4,21 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>异步非阻塞和同步非阻塞 | don7hao&#39;s blog</title>
+    <title>门描述符 | don7hao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1,user-scalable=no">
     
     <meta name="author" content="don7hao">
     
-    <meta name="description" content="异步非阻塞和同步非阻塞
-美食广场有餐馆A和餐馆B
-
-餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。
-
-餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。
-
-
-异步非阻塞
-异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等">
+    <meta name="description" content="环境
+CPU ： x86 32bit内核版本：2.6.18
+门描述符
+在保护模式下，中断向量表中的表项由8个字节组成(两个字节的段描述符，偏移量四字节来表示)，其中的每个表项叫做一个门描述符（gatedescriptor）。“门”的含义是当中断发生时必须先通过这些门，然后才能进入相应的处理程序。门描">
     
     
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="don6hao" />
-    <meta name="twitter:title" content="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" />
+    <meta name="twitter:title" content="门描述符 | don7hao&#39;s blog" />
       
     
     
@@ -73,13 +67,13 @@
       <div id="main" class="post" itemscope itemprop="blogPost">
 	<article itemprop="articleBody"> 
 		<header class="article-info clearfix">
-    <time datetime="2015-01-20T08:45:07.000Z" itemprop="datePublished">
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url" class="article-time">1月 20 2015</a>
+    <time datetime="2015-05-03T08:45:07.000Z" itemprop="datePublished">
+      <a href="/2015/05/03/kernel/set_gate/" title="门描述符" itemprop="url" class="article-time">5月 3 2015</a>
     </time>
 
   <h1 itemprop="name" class="article-name">
     
-      <a href="/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" title="异步非阻塞和同步非阻塞" itemprop="url"><span>异步非阻塞和同步非阻塞</span></a>
+      <a href="/2015/05/03/kernel/set_gate/" title="门描述符" itemprop="url"><span>门描述符</span></a>
   </h1>
 </header>
 
@@ -89,39 +83,93 @@
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
 		
-			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#异步非阻塞和同步非阻塞"><span class="toc-number">1.</span> <span class="toc-text">异步非阻塞和同步非阻塞</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#异步非阻塞"><span class="toc-number">1.1.</span> <span class="toc-text">异步非阻塞</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#同步非阻塞"><span class="toc-number">1.2.</span> <span class="toc-text">同步非阻塞</span></a></li></ol></li></ol>
+			<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#环境"><span class="toc-number">1.</span> <span class="toc-text">环境</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#门描述符"><span class="toc-number">2.</span> <span class="toc-text">门描述符</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#门描述符类型"><span class="toc-number">3.</span> <span class="toc-text">门描述符类型</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#设置门描述符"><span class="toc-number">4.</span> <span class="toc-text">设置门描述符</span></a></li></ol>
 		
 		</div>
 		
-		<h1 id="异步非阻塞和同步非阻塞">异步非阻塞和同步非阻塞</h1>
-<p>美食广场有餐馆A和餐馆B</p>
-<ol>
-<li><p>餐馆A的服务流程就是刷卡点完餐并给你一个通知器，餐准备好后通知器就会震动，客户就可以过来取餐。</p>
-</li>
-<li><p>餐馆B的服务流程就是刷卡点完餐，过段时间客户自己过来看餐是否准备完毕。</p>
-</li>
-</ol>
-<h2 id="异步非阻塞">异步非阻塞</h2>
-<p>异步阻塞就像你去餐馆A消费，刷完卡点完餐后就去干另外的事情，等餐准备好了通知器就会震动通知你。</p>
-<h2 id="同步非阻塞">同步非阻塞</h2>
-<p>同步阻塞就像你去餐馆B消费，刷完卡带完餐后你就去干其他的事情，过段时间跑到餐馆B询问餐是否准备完毕。</p>
-<p>阅读<br><a href="http://liuxun.org/blog/reactor-he-proactor-mo-shi-bi-jiao/" target="_blank" rel="external">Reactor和Proactor模式比较</a></p>
-  
+		<h1 id="环境">环境</h1>
+<p>CPU ： x86 32bit<br>内核版本：2.6.18</p>
+<h1 id="门描述符">门描述符</h1>
+<p>在保护模式下，中断向量表中的表项由8个字节组成(两个字节的段描述符，偏移量四字节来表示)，其中的每个表项叫做一个门描述符（gate<br>descriptor）。<br>“门”的含义是当中断发生时必须先通过这些门，然后才能进入相应的处理程序。<br>门描述符的一般格式如下：</p>
+<p><img src="/img/gate_1.jpg" alt="gate_1"> </p>
+
+
+
+<h1 id="门描述符类型">门描述符类型</h1>
+<p>1.中断门(Interrupt gate)<br>其类型码为110，它包含一个中断或异常处理程序所在的段选择符和段内偏移。控制权通过中断门进入中断处理程序时，处理器清IF标志，即关中断，以避免嵌套中断的发生。<br>中断门中的DPL（Descriptor Privilege Level）为0，因此，用户态的进程不能访问Intel的中断门。所有的中断处理程序都由中断门激活，并全部限制在内核态。<br>设置中断门的代码如下：</p>
+<pre><code><span class="comment">//中断描述符表</span>
+<span class="keyword">struct</span> desc_struct idt_table[<span class="number">256</span>] __attribute__((__section__(<span class="string">".data.idt"</span>))) = { {<span class="number">0</span>, <span class="number">0</span>}, };
+<span class="comment">//描述符结构</span>
+<span class="keyword">struct</span> desc_struct {
+    <span class="keyword">unsigned</span> <span class="keyword">long</span> a,b;
+};
+
+<span class="keyword">void</span> set_intr_gate(<span class="keyword">unsigned</span> <span class="keyword">int</span> n, <span class="keyword">void</span> *addr)
+{
+    _set_gate(idt_table+n,<span class="number">14</span>,<span class="number">0</span>,addr,__KERNEL_CS);
+}
+</code></pre><p>2.陷阱门(Trap gate)<br>其类型码为111,与中断门类似，其唯一的区别是，控制权通过陷阱门进入处理程序时维持IF标志位不变，也就是说，不关中断。<br>其设置代码如下：</p>
+<pre><code><span class="keyword">static</span> <span class="type">void</span> __init set_trap_gate(unsigned <span class="type">int</span> n, <span class="type">void</span> *<span class="keyword">addr</span>)
+{
+    _set_gate(idt_table+n,<span class="number">15</span>,<span class="number">0</span>,<span class="keyword">addr</span>,__KERNEL_CS);
+}
+</code></pre><p>3.任务门(Task gate)<br>IDT中的任务门描述符格式与GDT和LDT中的任务门格式相同，含有一个任务TSS段的选择符，该任务用于处理异常或中断，Linux用于处理Double fault。<br>其设置代码如下：</p>
+<pre><code><span class="keyword">static</span> <span class="keyword">void</span> __init set_task_gate(<span class="keyword">unsigned</span> <span class="keyword">int</span> n, <span class="keyword">unsigned</span> <span class="keyword">int</span> gdt_entry)
+{
+    _set_gate(idt_table+n,<span class="number">5</span>,<span class="number">0</span>,<span class="number">0</span>,(gdt_entry&lt;&lt;<span class="number">3</span>));
+}
+</code></pre><p>4.系统门（System gate）<br>能够让用户态的进程访问Intel的陷阱门，门描述符的DPL为3。通过系统门来激活3个Linux异常处理程序，它们的向量是4、5及0x80，也就是说，在用户态下，可以使用into、bound<br>及int0x80三条汇编指令。</p>
+<pre><code><span class="keyword">static</span> <span class="type">void</span> __init set_system_gate(unsigned <span class="type">int</span> n, <span class="type">void</span> *<span class="keyword">addr</span>)
+{
+    _set_gate(idt_table+n,<span class="number">15</span>,<span class="number">3</span>,<span class="keyword">addr</span>,__KERNEL_CS);
+}
+</code></pre><p>5.系统中断门 (System intterupt gate)<br>能够被用户态进程访问的Intel中断门，门的DPL为3.与向量3相关的异常处理程序是由系统中断门激活的，因此，在用户态可以使用汇编语言指令int3.</p>
+<pre><code><span class="keyword">static</span> inline <span class="type">void</span> set_system_intr_gate(unsigned <span class="type">int</span> n, <span class="type">void</span> *<span class="keyword">addr</span>)
+{
+,..._set_gate(idt_table+n, <span class="number">14</span>, <span class="number">3</span>, <span class="keyword">addr</span>, __KERNEL_CS);
+} 
+</code></pre><p><img src="/img/gate_2.jpg" alt="gate_2"> </p>
+
+
+<h1 id="设置门描述符">设置门描述符</h1>
+<p>1.(seg&lt;&lt;16)段描述符放到eax寄存中.<br>2.((char *)(addr))段中偏移量(比如_system_call的地址)放到edx寄存中.<br>3.设置DPL和门类型码:(0x8000+(dpl&lt;&lt;13)+(type&lt;&lt;8))<br>4.(gate_addr)为中断描述符的低32位<br>5.(gate_addr+1)为中断描述符的高32位</p>
+<pre><code><span class="preprocessor">#<span class="keyword">define</span> _set_gate(gate_addr,type,dpl,addr,seg) \</span>
+<span class="keyword">do</span> { \
+  <span class="keyword">int</span> __d0, __d1; \
+  <span class="comment">//把dx(edx的低16位)放到ax(eax的第16位中)</span>
+  __asm__ __volatile__ (<span class="string">"movw %%dx,%%ax\n\t"</span> \
+    <span class="comment">//设置DPL和门类型码并放到dx(edx的低16位)</span>
+    <span class="string">"movw %4,%%dx\n\t"</span> \
+    <span class="comment">//把eax的内容放到门描述符的低32位上</span>
+    <span class="string">"movl %%eax,%0\n\t"</span> \
+    <span class="comment">//把edx的内容放到门描述符的高32位上</span>
+    <span class="string">"movl %%edx,%1"</span> \
+    :<span class="string">"=m"</span> (*((<span class="keyword">long</span> *) (gate_addr))), \
+     <span class="string">"=m"</span> (*(<span class="number">1</span>+(<span class="keyword">long</span> *) (gate_addr))), <span class="string">"=&amp;a"</span> (__d0), <span class="string">"=&amp;d"</span> (__d1) \
+    :<span class="string">"i"</span> ((<span class="keyword">short</span>) (<span class="number">0x8000</span>+(dpl&lt;&lt;<span class="number">13</span>)+(type&lt;&lt;<span class="number">8</span>))), \
+     <span class="string">"3"</span> ((<span class="keyword">char</span> *) (addr)),<span class="string">"2"</span> ((seg) &lt;&lt; <span class="number">16</span>)); \
+} <span class="keyword">while</span> (<span class="number">0</span>)
+</code></pre>  
 	</div>
 		<footer class="article-footer clearfix">
 
 <div class="article-categories">
   <span></span>
-  <a class="article-category-link" href="/categories/programming/">programming</a>
+  <a class="article-category-link" href="/categories/kernel/">kernel</a>
 </div>
 
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/中断-门描述符/">中断 门描述符</a>
+  </div>
 
 
 
 
 <div class="article-share" id="share">
 
-  <div data-url="http://don7hao.github.com/2015/01/20/programming/asynchronous-nonblocking-and-synchronous-nonblocking/" data-title="异步非阻塞和同步非阻塞 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
+  <div data-url="http://don7hao.github.com/2015/05/03/kernel/set_gate/" data-title="门描述符 | don7hao&#39;s blog" data-tsina="undefined" class="share clearfix">
   </div>
 
 </div>
@@ -130,19 +178,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2015/01/21/libev/libev-watcher/" title="libev-signal watcher">
-  <strong>上一篇：</strong><br/>
-  <span>
-  libev-signal watcher</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2015/01/19/kernel/vfs_filesystem/"  title="File System in Linux">
+<a href="/2015/04/07/kernel/stack_of_kernel_switch/"  title="内核堆栈切换">
  <strong>下一篇：</strong><br/> 
- <span>File System in Linux
+ <span>内核堆栈切换
 </span>
 </a>
 </div>
